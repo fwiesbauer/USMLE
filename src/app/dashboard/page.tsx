@@ -1,0 +1,109 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { createServerClient } from '@/lib/supabase/server';
+import { Card } from '@/components/ui/Card';
+
+export default async function DashboardPage() {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data: quizzes } = await supabase
+    .from('quizzes')
+    .select('*')
+    .eq('educator_id', user.id)
+    .order('created_at', { ascending: false });
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <h1 className="text-xl font-bold text-brand-dark">QuizForge</h1>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard/settings"
+              className="text-sm text-gray-600 hover:text-brand-mid"
+            >
+              Settings
+            </Link>
+            <form action="/api/auth/logout" method="POST">
+              <button
+                type="submit"
+                className="text-sm text-gray-600 hover:text-brand-mid"
+              >
+                Sign Out
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">My Quizzes</h2>
+          <Link
+            href="/quizzes/new"
+            className="inline-flex items-center rounded-lg bg-brand-mid px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark transition-colors"
+          >
+            New Quiz
+          </Link>
+        </div>
+
+        {!quizzes || quizzes.length === 0 ? (
+          <Card className="text-center py-12">
+            <p className="text-gray-500 mb-4">
+              You haven&apos;t created any quizzes yet.
+            </p>
+            <Link
+              href="/quizzes/new"
+              className="text-brand-mid hover:underline font-medium"
+            >
+              Create your first quiz
+            </Link>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {quizzes.map((quiz) => (
+              <Link key={quiz.id} href={`/quizzes/${quiz.id}/review`}>
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-gray-900 truncate">
+                      {quiz.title}
+                    </h3>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        quiz.status === 'published'
+                          ? 'bg-correct-fill text-correct-dark'
+                          : quiz.status === 'review'
+                            ? 'bg-amber-50 text-amber-700'
+                            : quiz.status === 'generating'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {quiz.status}
+                    </span>
+                  </div>
+                  {quiz.source_filename && (
+                    <p className="text-xs text-gray-400 truncate">
+                      {quiz.source_filename}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-2">
+                    {quiz.question_count_requested} questions ·{' '}
+                    {new Date(quiz.created_at).toLocaleDateString()}
+                  </p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
