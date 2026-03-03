@@ -45,9 +45,11 @@ export async function PUT(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Encryption error:', message);
     return NextResponse.json(
-      { error: 'Encryption failed' },
+      { error: `Encryption failed: ${message}` },
       { status: 500 }
     );
   }
