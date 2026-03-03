@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmationSent, setConfirmationSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,30 +37,39 @@ export default function SignupPage() {
         return;
       }
 
-      if (data.user) {
-        // Create educator row
-        const { error: insertError } = await supabase
-          .from('educators')
-          .insert({
-            id: data.user.id,
-            email,
-            display_name: displayName || null,
-          });
-
-        if (insertError) {
-          setError('Account created but profile setup failed. Please try signing in.');
-          return;
-        }
+      // Educator profile is created automatically via database trigger.
+      // If email confirmation is enabled, the session won't exist yet.
+      if (data.session) {
+        router.push('/dashboard');
+        router.refresh();
+      } else {
+        // Email confirmation is required — tell the user to check their inbox
+        setConfirmationSent(true);
       }
-
-      router.push('/dashboard');
-      router.refresh();
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (confirmationSent) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold text-brand-dark mb-4">
+            Check your email
+          </h1>
+          <p className="text-gray-600 mb-4">
+            We sent a confirmation link to <strong>{email}</strong>. Click the link to activate your account, then sign in.
+          </p>
+          <Link href="/login" className="text-brand-mid hover:underline">
+            Go to Sign In
+          </Link>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
