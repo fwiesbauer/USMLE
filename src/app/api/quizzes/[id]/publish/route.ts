@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const supabase = createServerClient();
@@ -59,8 +59,9 @@ export async function POST(
     );
   }
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const protocol = request.headers.get('x-forwarded-proto') || 'https';
+  const host = request.headers.get('host') || 'localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
   const shareUrl = `${appUrl}/q/${shareToken}`;
 
   return NextResponse.json({ share_token: shareToken, share_url: shareUrl });
