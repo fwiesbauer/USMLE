@@ -3,6 +3,9 @@ import { generateQuestions } from '@/lib/ai/generate-questions';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
+// Allow up to 300s for AI generation (Vercel Pro: 300s, Hobby: 60s)
+export const maxDuration = 300;
+
 export async function POST(
   _request: NextRequest,
   { params }: { params: { id: string } }
@@ -66,55 +69,61 @@ export async function POST(
     .update({ status: 'generating' })
     .eq('id', params.id);
 
-  // Fire and forget — generation runs in background
-  (async () => {
-    try {
-      const questions = await generateQuestions(
-        quiz.source_text!,
-        quiz.question_count_requested,
-        apiKey
-      );
+  // Run generation synchronously — fire-and-forget does NOT work on Vercel
+  // because serverless functions are torn down after the response is sent.
+  try {
+    const questions = await generateQuestions(
+      quiz.source_text!,
+      quiz.question_count_requested,
+      apiKey
+    );
 
-      // Bulk insert questions
-      const questionRows = questions.map((q) => ({
-        quiz_id: params.id,
-        position: q.position,
-        topic: q.topic,
-        section: q.section,
-        cor_loe: q.cor_loe,
-        vignette: q.vignette,
-        question_text: q.question_text,
-        options: q.options,
-        correct_answer: q.correct_answer,
-        explanation: q.explanation,
-        nuggets: q.nuggets,
-      }));
+    // Bulk insert questions
+    const questionRows = questions.map((q) => ({
+      quiz_id: params.id,
+      position: q.position,
+      topic: q.topic,
+      section: q.section,
+      cor_loe: q.cor_loe,
+      vignette: q.vignette,
+      question_text: q.question_text,
+      options: q.options,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation,
+      nuggets: q.nuggets,
+    }));
 
-      const { error: insertError } = await serviceClient
-        .from('questions')
-        .insert(questionRows);
+    const { error: insertError } = await serviceClient
+      .from('questions')
+      .insert(questionRows);
 
-      if (insertError) {
-        console.error('Question insert error:', insertError);
-        await serviceClient
-          .from('quizzes')
-          .update({ status: 'error' })
-          .eq('id', params.id);
-        return;
-      }
-
-      await serviceClient
-        .from('quizzes')
-        .update({ status: 'review' })
-        .eq('id', params.id);
-    } catch (err) {
-      console.error('Generation error:', err);
+    if (insertError) {
+      console.error('Question insert error:', insertError);
       await serviceClient
         .from('quizzes')
         .update({ status: 'error' })
         .eq('id', params.id);
+      return NextResponse.json(
+        { error: 'Failed to save generated questions.' },
+        { status: 500 }
+      );
     }
-  })();
 
-  return NextResponse.json({ status: 'generating' }, { status: 202 });
+    await serviceClient
+      .from('quizzes')
+      .update({ status: 'review' })
+      .eq('id', params.id);
+
+    return NextResponse.json({ status: 'review' }, { status: 200 });
+  } catch (err) {
+    console.error('Generation error:', err);
+    await serviceClient
+      .from('quizzes')
+      .update({ status: 'error' })
+      .eq('id', params.id);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Generation failed. Please try again.' },
+      { status: 500 }
+    );
+  }
 }

@@ -103,46 +103,41 @@ export default function NewQuizPage() {
     setStep('generating');
 
     try {
+      // The generate endpoint runs synchronously — it awaits AI generation
+      // and returns when questions are saved. This can take 30-120+ seconds.
       const res = await fetch(`/api/quizzes/${quizId}/generate`, {
         method: 'POST',
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || 'Failed to start generation.');
+        setError(data.error || 'Generation failed. Please try again.');
         setStep('confirm');
         setGenerating(false);
         return;
       }
 
-      // Poll for status
-      const pollInterval = setInterval(async () => {
+      if (data.status === 'review') {
+        router.push(`/quizzes/${quizId}/review`);
+        return;
+      }
+    } catch {
+      // Network error or timeout — check if generation completed in the background
+      // by polling status once
+      try {
         const statusRes = await fetch(`/api/quizzes/${quizId}/status`);
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           if (statusData.status === 'review') {
-            clearInterval(pollInterval);
             router.push(`/quizzes/${quizId}/review`);
-          } else if (statusData.status === 'error') {
-            clearInterval(pollInterval);
-            setError(statusData.progress_message || 'Generation failed. Please try again.');
-            setStep('confirm');
-            setGenerating(false);
+            return;
           }
         }
-      }, 3000);
-
-      // Timeout after 120 seconds
-      setTimeout(() => {
-        clearInterval(pollInterval);
-        if (generating) {
-          setError('Generation timed out. Please try again.');
-          setStep('confirm');
-          setGenerating(false);
-        }
-      }, 120000);
-    } catch {
-      setError('An unexpected error occurred.');
+      } catch {
+        // ignore
+      }
+      setError('An unexpected error occurred. Please check your quiz list — questions may still have been generated.');
       setStep('confirm');
       setGenerating(false);
     }
