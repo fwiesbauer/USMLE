@@ -20,6 +20,7 @@ export default function ReviewPage() {
   const [editedIds, setEditedIds] = useState<Set<string>>(new Set());
   const [publishing, setPublishing] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +52,12 @@ export default function ReviewPage() {
   useEffect(() => {
     loadQuiz();
   }, [loadQuiz]);
+
+  // Build share URL for already-published quizzes
+  const existingShareUrl =
+    quiz?.status === 'published' && quiz?.share_token
+      ? `${window.location.origin}/q/${quiz.share_token}`
+      : '';
 
   const handleSave = async (questionId: string, updated: Partial<Question>) => {
     const res = await fetch(`/api/questions/${questionId}`, {
@@ -141,11 +148,31 @@ export default function ReviewPage() {
           <Button
             onClick={handlePublish}
             loading={publishing}
-            disabled={questions.length < 3 || quiz.status === 'published'}
+            disabled={questions.length < 3}
           >
-            {quiz.status === 'published' ? 'Published' : 'Publish Quiz'}
+            {quiz.status === 'published' ? 'Republish Quiz' : 'Publish Quiz'}
           </Button>
         </div>
+        {existingShareUrl && !shareUrl && (
+          <div className="max-w-6xl mx-auto mt-3 flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">Share link:</span>
+            <input
+              readOnly
+              value={existingShareUrl}
+              className="flex-1 max-w-md rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-gray-50"
+            />
+            <Button
+              variant="secondary"
+              onClick={() => {
+                navigator.clipboard.writeText(existingShareUrl);
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
+              }}
+            >
+              {linkCopied ? 'Copied!' : 'Copy'}
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* Share URL modal */}

@@ -184,6 +184,7 @@ export default function LearnerQuizPage() {
   if (screen === 'quiz') {
     return (
       <QuizQuestion
+        key={questions[currentIndex].id}
         question={questions[currentIndex]}
         currentIndex={currentIndex}
         totalQuestions={questions.length}
