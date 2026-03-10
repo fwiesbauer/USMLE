@@ -27,12 +27,12 @@ export default function LandingPage() {
         <h2 className="text-5xl font-bold text-brand-dark mb-6 leading-tight">
           Turn any PDF into a
           <br />
-          USMLE-style quiz
+          USMLE Step 2 CK–style quiz
         </h2>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
           Upload a clinical guideline, article, or textbook chapter. QuizForge
-          uses AI to generate high-quality multiple choice questions in minutes,
-          not hours.
+          uses AI to generate high-quality Step 2 CK practice questions in
+          minutes, not hours.
         </p>
         <Link
           href="/signup"
