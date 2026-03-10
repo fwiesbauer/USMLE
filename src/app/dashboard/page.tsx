@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 
 export default async function DashboardPage() {
   const supabase = createServerClient();
@@ -23,7 +24,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-brand-dark">QuizForge</h1>
+          <Logo href="/dashboard" />
           <div className="flex items-center gap-4">
             <Link
               href="/dashboard/settings"

@@ -1,11 +1,12 @@
 import Link from 'next/link';
+import { Logo } from '@/components/ui/Logo';
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-light to-white">
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold text-brand-dark">QuizForge</h1>
+        <Logo href="/" size="md" />
         <div className="flex gap-3">
           <Link
             href="/login"
@@ -24,15 +25,18 @@ export default function LandingPage() {
 
       {/* Hero */}
       <main className="max-w-4xl mx-auto px-6 pt-20 pb-32 text-center">
+        <p className="text-sm font-semibold uppercase tracking-wide text-brand-mid mb-4">
+          Built by Medmastery &amp; Life in the Fast Lane
+        </p>
         <h2 className="text-5xl font-bold text-brand-dark mb-6 leading-tight">
           Turn any PDF into a
           <br />
           USMLE Step 2 CK–style quiz
         </h2>
         <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-          Upload a clinical guideline, article, or textbook chapter. QuizForge
-          uses AI to generate high-quality Step 2 CK practice questions in
-          minutes, not hours.
+          Upload a clinical guideline, article, or textbook chapter. Our AI
+          generates high-quality Step 2 CK practice questions in minutes, not
+          hours — so you can focus on teaching, not writing items.
         </p>
         <Link
           href="/signup"

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { QuestionCard } from '@/components/editor/QuestionCard';
 import { QuestionEditor } from '@/components/editor/QuestionEditor';
+import { Logo } from '@/components/ui/Logo';
 import type { Question, Quiz } from '@/types/quiz';
 
 export default function ReviewPage() {
@@ -140,9 +141,7 @@ export default function ReviewPage() {
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-brand-dark">
-              <a href="/dashboard">QuizForge</a>
-            </h1>
+            <Logo href="/dashboard" />
             <p className="text-sm text-gray-500">{quiz.title}</p>
           </div>
           <Button

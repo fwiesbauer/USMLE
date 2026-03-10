@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Logo } from '@/components/ui/Logo';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -74,7 +75,10 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="max-w-md w-full">
-        <h1 className="text-2xl font-bold text-brand-dark mb-6 text-center">
+        <div className="flex justify-center mb-6">
+          <Logo href="/" size="md" />
+        </div>
+        <h1 className="text-xl font-bold text-brand-dark mb-6 text-center">
           Create your account
         </h1>
 

@@ -5,9 +5,9 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'QuizForge — AI-Powered USMLE Question Generator',
+  title: 'USMLE Step 2 CK Question Generator — by Medmastery & LITFL',
   description:
-    'Upload a PDF and generate high-quality USMLE-style multiple choice questions with AI.',
+    'Upload a PDF and generate high-quality USMLE Step 2 CK practice questions with AI. Built by Medmastery and Life in the Fast Lane.',
 };
 
 export default function RootLayout({
