@@ -91,16 +91,34 @@ export async function POST(
       // Non-fatal — continue without storage
     }
 
-    // Update quiz with extracted text and source reference
-    await supabase
+    // Update quiz with extracted text
+    const { error: updateError } = await supabase
       .from('quizzes')
       .update({
         source_text: extraction.text,
         source_filename: file.name,
         pdf_storage_path: storagePath,
-        ...(sourceReference ? { source_reference: sourceReference } : {}),
       })
       .eq('id', params.id);
+
+    if (updateError) {
+      console.error('Quiz update error:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to save extracted text.' },
+        { status: 500 }
+      );
+    }
+
+    // Save source reference separately — non-fatal if column doesn't exist yet
+    if (sourceReference) {
+      await supabase
+        .from('quizzes')
+        .update({ source_reference: sourceReference })
+        .eq('id', params.id)
+        .then(({ error }) => {
+          if (error) console.error('Source reference save error (non-fatal):', error);
+        });
+    }
 
     return NextResponse.json({
       pdf_storage_path: storagePath,
