@@ -19,7 +19,7 @@ export function Logo({ href = '/', size = 'sm' }: LogoProps) {
 
   const img = (
     <Image
-      src="/litfl-medmastery-logo.png"
+      src="/LITFL_logo_Medmastery.png"
       alt="Life in the Fast Lane × Medmastery"
       width={width}
       height={height}
