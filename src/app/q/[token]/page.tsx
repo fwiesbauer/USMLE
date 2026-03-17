@@ -30,6 +30,7 @@ export default function LearnerQuizPage() {
 
   const [quizTitle, setQuizTitle] = useState('');
   const [sourceFilename, setSourceFilename] = useState('');
+  const [sourceReference, setSourceReference] = useState('');
   const [questions, setQuestions] = useState<PublicQuestion[]>([]);
   const [progress, setProgress] = useState<LearnerProgress | null>(null);
   const [screen, setScreen] = useState<Screen>('welcome');
@@ -50,6 +51,7 @@ export default function LearnerQuizPage() {
         const data = await res.json();
         setQuizTitle(data.title);
         setSourceFilename(data.source_filename || '');
+        setSourceReference(data.source_reference || '');
         setQuestions(data.questions);
 
         // Check for existing progress
@@ -170,6 +172,7 @@ export default function LearnerQuizPage() {
       <QuizWelcome
         title={quizTitle}
         sourceFilename={sourceFilename}
+        sourceReference={sourceReference}
         questionCount={questions.length}
         hasExistingProgress={hasExistingProgress}
         previousScore={previousScore}

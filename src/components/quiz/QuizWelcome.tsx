@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 interface QuizWelcomeProps {
   title: string;
   sourceFilename?: string;
+  sourceReference?: string;
   questionCount: number;
   hasExistingProgress: boolean;
   previousScore?: { correct: number; total: number };
@@ -18,6 +19,7 @@ interface QuizWelcomeProps {
 export function QuizWelcome({
   title,
   sourceFilename,
+  sourceReference,
   questionCount,
   hasExistingProgress,
   previousScore,
@@ -31,9 +33,9 @@ export function QuizWelcome({
       <Card className="max-w-lg w-full text-center">
         <h1 className="text-3xl font-bold text-brand-dark mb-4">{title}</h1>
 
-        {sourceFilename && (
+        {(sourceReference || sourceFilename) && (
           <p className="text-sm text-gray-500 mb-2">
-            Based on: {sourceFilename}
+            {sourceReference || `Based on: ${sourceFilename}`}
           </p>
         )}
 
