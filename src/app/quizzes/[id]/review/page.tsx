@@ -24,6 +24,8 @@ export default function ReviewPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editingSource, setEditingSource] = useState(false);
+  const [sourceRefDraft, setSourceRefDraft] = useState('');
 
   const loadQuiz = useCallback(async () => {
     const supabase = createClient();
@@ -140,9 +142,59 @@ export default function ReviewPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
+          <div className="min-w-0 flex-1">
             <Logo href="/dashboard" />
             <p className="text-sm text-gray-500">{quiz.title}</p>
+            {quiz.source_reference ? (
+              <div className="mt-1 flex items-center gap-2 group">
+                {editingSource ? (
+                  <div className="flex items-center gap-2 flex-1 max-w-xl">
+                    <input
+                      autoFocus
+                      value={sourceRefDraft}
+                      onChange={(e) => setSourceRefDraft(e.target.value)}
+                      className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter') {
+                          await fetch(`/api/quizzes/${quizId}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ source_reference: sourceRefDraft }),
+                          });
+                          setQuiz({ ...quiz, source_reference: sourceRefDraft });
+                          setEditingSource(false);
+                        } else if (e.key === 'Escape') {
+                          setEditingSource(false);
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                      onClick={() => setEditingSource(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-gray-400 italic truncate max-w-xl">
+                      {quiz.source_reference}
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setSourceRefDraft(quiz.source_reference || '');
+                        setEditingSource(true);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : null}
           </div>
           <Button
             onClick={handlePublish}

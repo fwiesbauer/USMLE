@@ -26,6 +26,7 @@ export interface Quiz {
   educator_id: string;
   title: string;
   source_filename: string;
+  source_reference?: string;
   status: 'draft' | 'generating' | 'review' | 'published';
   share_token?: string;
   question_count_requested: number;

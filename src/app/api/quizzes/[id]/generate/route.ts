@@ -1,5 +1,6 @@
 import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { generateQuestions } from '@/lib/ai/generate-questions';
+import { extractSourceReference } from '@/lib/ai/extract-source-reference';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -72,11 +73,15 @@ export async function POST(
   // Run generation synchronously — fire-and-forget does NOT work on Vercel
   // because serverless functions are torn down after the response is sent.
   try {
-    const questions = await generateQuestions(
-      quiz.source_text!,
-      quiz.question_count_requested,
-      apiKey
-    );
+    // Run question generation and source reference extraction in parallel
+    const [questions, sourceReference] = await Promise.all([
+      generateQuestions(
+        quiz.source_text!,
+        quiz.question_count_requested,
+        apiKey
+      ),
+      extractSourceReference(quiz.source_text!, apiKey).catch(() => null),
+    ]);
 
     // Bulk insert questions
     const questionRows = questions.map((q) => ({
@@ -114,7 +119,10 @@ export async function POST(
 
     await serviceClient
       .from('quizzes')
-      .update({ status: 'review' })
+      .update({
+        status: 'review',
+        ...(sourceReference ? { source_reference: sourceReference } : {}),
+      })
       .eq('id', params.id);
 
     return NextResponse.json({ status: 'review' }, { status: 200 });
