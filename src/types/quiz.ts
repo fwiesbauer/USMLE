@@ -16,6 +16,9 @@ export interface Question {
   correct_answer: string;
   explanation: string;
   nuggets: string[];
+  organ_systems: string[];
+  physician_tasks: string[];
+  disciplines: string[];
 }
 
 export interface Quiz {
@@ -86,4 +89,7 @@ export interface GeneratedQuestion {
   correct_answer: string;
   explanation: string;
   nuggets: string[];
+  organ_systems: string[];
+  physician_tasks: string[];
+  disciplines: string[];
 }

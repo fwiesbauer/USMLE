@@ -91,6 +91,9 @@ export async function POST(
       correct_answer: q.correct_answer,
       explanation: q.explanation,
       nuggets: q.nuggets,
+      organ_systems: q.organ_systems,
+      physician_tasks: q.physician_tasks,
+      disciplines: q.disciplines,
     }));
 
     const { error: insertError } = await serviceClient

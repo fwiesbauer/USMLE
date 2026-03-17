@@ -19,6 +19,9 @@ const GeneratedQuestionSchema = z.object({
   correct_answer: z.string(),
   explanation: z.string(),
   nuggets: z.array(z.string()).min(2).max(4),
+  organ_systems: z.array(z.string()).min(1),
+  physician_tasks: z.array(z.string()).min(1),
+  disciplines: z.array(z.string()).min(1),
 });
 
 const GeneratedQuestionsSchema = z.array(GeneratedQuestionSchema);

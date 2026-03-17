@@ -3,8 +3,57 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Tooltip } from '@/components/ui/Tooltip';
 import type { Question } from '@/types/quiz';
+
+const ORGAN_SYSTEM_OPTIONS = [
+  'Human Development',
+  'Immune System',
+  'Blood & Lymphoreticular System',
+  'Behavioral Health',
+  'Nervous System & Special Senses',
+  'Skin & Subcutaneous Tissue',
+  'Musculoskeletal System',
+  'Cardiovascular System',
+  'Respiratory System',
+  'Gastrointestinal System',
+  'Renal & Urinary System',
+  'Pregnancy, Childbirth, the Puerperium',
+  'Female & Transgender Reproductive System',
+  'Breast',
+  'Male & Transgender Reproductive System',
+  'Endocrine System',
+  'Multisystem Processes & Disorders',
+  'Biostatistics, Epidemiology/Population Health, Interpretation of the Medical Literature',
+  'Social Sciences',
+];
+
+const PHYSICIAN_TASK_OPTIONS = [
+  'Applying Foundational Science Concepts',
+  'Patient Care \u2013 Diagnosis',
+  'Patient Care \u2013 Management',
+  'Communication',
+  'Professionalism / Legal / Ethics',
+  'Systems-based Practice & Patient Safety',
+  'Practice-based Learning & Improvement / Applied Biostatistics & Epidemiology',
+  'Diagnosis \u2013 History & Physical',
+  'Diagnosis \u2013 Laboratory/Diagnostic Studies',
+  'Diagnosis \u2013 Formulating Diagnosis',
+  'Diagnosis \u2013 Prognosis/Outcome',
+  'Management \u2013 Health Maintenance & Disease Prevention',
+  'Management \u2013 Pharmacotherapy',
+  'Management \u2013 Clinical Interventions',
+  'Management \u2013 Mixed Management',
+];
+
+const DISCIPLINE_OPTIONS = [
+  'Medicine',
+  'Surgery',
+  'Pediatrics',
+  'Obstetrics & Gynecology',
+  'Psychiatry',
+];
 
 const COR_LOE_OPTIONS = [
   { value: '', label: 'None' },
@@ -55,6 +104,9 @@ export function QuestionEditor({
   const [nuggets, setNuggets] = useState(question.nuggets);
   const [section, setSection] = useState(question.section);
   const [corLoe, setCorLoe] = useState(question.cor_loe);
+  const [organSystems, setOrganSystems] = useState<string[]>(question.organ_systems ?? []);
+  const [physicianTasks, setPhysicianTasks] = useState<string[]>(question.physician_tasks ?? []);
+  const [disciplines, setDisciplines] = useState<string[]>(question.disciplines ?? []);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -71,6 +123,9 @@ export function QuestionEditor({
         nuggets,
         section,
         cor_loe: corLoe,
+        organ_systems: organSystems,
+        physician_tasks: physicianTasks,
+        disciplines,
       });
     } finally {
       setSaving(false);
@@ -225,6 +280,65 @@ export function QuestionEditor({
           <Button onClick={addNugget} variant="secondary" className="text-xs">
             Add Pearl
           </Button>
+        </div>
+      </div>
+
+      {/* Classification Dimensions */}
+      <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+        <p className="text-sm font-semibold text-gray-700">Classification</p>
+
+        <div>
+          <div className="flex items-center gap-1 mb-1">
+            <label className="block text-sm font-medium text-gray-700">Organ System</label>
+            <Tooltip content="The primary organ system this question tests. Choose the single best fit, or multiple if genuinely multi-system.">
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-xs cursor-help">?</span>
+            </Tooltip>
+          </div>
+          <MultiSelect
+            id="organ_systems"
+            options={ORGAN_SYSTEM_OPTIONS}
+            selected={organSystems}
+            onChange={setOrganSystems}
+            placeholder="Select organ system(s)..."
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center gap-1 mb-1">
+            <label className="block text-sm font-medium text-gray-700">Physician Task</label>
+            <Tooltip
+              content={
+                <>
+                  The competency this question assesses. Pick one <strong>broad task</strong> (e.g. Patient Care - Diagnosis) and optionally one <strong>finer sub-task</strong> (e.g. Diagnosis - Laboratory/Diagnostic Studies).
+                </>
+              }
+            >
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-xs cursor-help">?</span>
+            </Tooltip>
+          </div>
+          <MultiSelect
+            id="physician_tasks"
+            options={PHYSICIAN_TASK_OPTIONS}
+            selected={physicianTasks}
+            onChange={setPhysicianTasks}
+            placeholder="Select physician task(s)..."
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center gap-1 mb-1">
+            <label className="block text-sm font-medium text-gray-700">Discipline</label>
+            <Tooltip content="The medical discipline this question falls under. Choose one, or multiple if truly cross-disciplinary.">
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-xs cursor-help">?</span>
+            </Tooltip>
+          </div>
+          <MultiSelect
+            id="disciplines"
+            options={DISCIPLINE_OPTIONS}
+            selected={disciplines}
+            onChange={setDisciplines}
+            placeholder="Select discipline(s)..."
+          />
         </div>
       </div>
 

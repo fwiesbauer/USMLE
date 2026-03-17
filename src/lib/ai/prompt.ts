@@ -145,6 +145,49 @@ E) Run the quality checklist below; revise until every item passes.
 - Identify the specific section of the source material each question came from.
 - Include COR/LOE if the source is a clinical guideline.
 
+## QUESTION CLASSIFICATION
+
+Classify every question along three dimensions. Pick one or more labels per
+dimension — use the EXACT label strings listed below.
+
+### Dimension 1 — Organ System
+Choose the single best-fitting system (or more than one only when genuinely
+multi-system):
+Human Development | Immune System | Blood & Lymphoreticular System |
+Behavioral Health | Nervous System & Special Senses |
+Skin & Subcutaneous Tissue | Musculoskeletal System |
+Cardiovascular System | Respiratory System | Gastrointestinal System |
+Renal & Urinary System | Pregnancy, Childbirth, the Puerperium |
+Female & Transgender Reproductive System | Breast |
+Male & Transgender Reproductive System | Endocrine System |
+Multisystem Processes & Disorders |
+Biostatistics, Epidemiology/Population Health, Interpretation of the Medical Literature |
+Social Sciences
+
+### Dimension 2 — Physician Task
+Choose one broad task AND optionally one finer sub-task:
+
+Broad tasks:
+Applying Foundational Science Concepts |
+Patient Care – Diagnosis | Patient Care – Management |
+Communication | Professionalism / Legal / Ethics |
+Systems-based Practice & Patient Safety |
+Practice-based Learning & Improvement / Applied Biostatistics & Epidemiology
+
+Finer sub-tasks (optional, include when applicable):
+Diagnosis – History & Physical |
+Diagnosis – Laboratory/Diagnostic Studies |
+Diagnosis – Formulating Diagnosis |
+Diagnosis – Prognosis/Outcome |
+Management – Health Maintenance & Disease Prevention |
+Management – Pharmacotherapy |
+Management – Clinical Interventions |
+Management – Mixed Management
+
+### Dimension 3 — Discipline
+Choose one (or more if truly cross-disciplinary):
+Medicine | Surgery | Pediatrics | Obstetrics & Gynecology | Psychiatry
+
 ## OUTPUT FORMAT
 
 Return ONLY a valid JSON array. No preamble, no explanation, no markdown
@@ -170,7 +213,10 @@ code blocks. The array must match this exact schema:
     "nuggets": [
       "Pearl one — specific and memorable.",
       "Pearl two — includes numbers or trial names."
-    ]
+    ],
+    "organ_systems": ["Cardiovascular System"],
+    "physician_tasks": ["Patient Care – Management", "Management – Pharmacotherapy"],
+    "disciplines": ["Medicine"]
   }
 ]
 

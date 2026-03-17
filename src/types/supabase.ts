@@ -101,6 +101,9 @@ export interface Database {
           correct_answer: string;
           explanation: string;
           nuggets: Json;
+          organ_systems: Json;
+          physician_tasks: Json;
+          disciplines: Json;
           created_at: string;
           updated_at: string;
         };
@@ -117,6 +120,9 @@ export interface Database {
           correct_answer: string;
           explanation: string;
           nuggets: Json;
+          organ_systems?: Json;
+          physician_tasks?: Json;
+          disciplines?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -133,6 +139,9 @@ export interface Database {
           correct_answer?: string;
           explanation?: string;
           nuggets?: Json;
+          organ_systems?: Json;
+          physician_tasks?: Json;
+          disciplines?: Json;
           created_at?: string;
           updated_at?: string;
         };

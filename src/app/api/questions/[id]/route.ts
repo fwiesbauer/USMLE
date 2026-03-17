@@ -15,6 +15,9 @@ const UpdateQuestionSchema = z.object({
   correct_answer: z.string().optional(),
   explanation: z.string().optional(),
   nuggets: z.array(z.string()).optional(),
+  organ_systems: z.array(z.string()).optional(),
+  physician_tasks: z.array(z.string()).optional(),
+  disciplines: z.array(z.string()).optional(),
 });
 
 export async function PUT(
