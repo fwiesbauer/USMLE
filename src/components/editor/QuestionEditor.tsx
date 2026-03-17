@@ -3,7 +3,37 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { Question } from '@/types/quiz';
+
+const COR_LOE_OPTIONS = [
+  { value: '', label: 'None' },
+  { value: 'COR 1, LOE A', label: 'COR 1, LOE A' },
+  { value: 'COR 1, LOE B-R', label: 'COR 1, LOE B-R' },
+  { value: 'COR 1, LOE B-NR', label: 'COR 1, LOE B-NR' },
+  { value: 'COR 1, LOE C-LD', label: 'COR 1, LOE C-LD' },
+  { value: 'COR 1, LOE C-EO', label: 'COR 1, LOE C-EO' },
+  { value: 'COR 2a, LOE A', label: 'COR 2a, LOE A' },
+  { value: 'COR 2a, LOE B-R', label: 'COR 2a, LOE B-R' },
+  { value: 'COR 2a, LOE B-NR', label: 'COR 2a, LOE B-NR' },
+  { value: 'COR 2a, LOE C-LD', label: 'COR 2a, LOE C-LD' },
+  { value: 'COR 2a, LOE C-EO', label: 'COR 2a, LOE C-EO' },
+  { value: 'COR 2b, LOE A', label: 'COR 2b, LOE A' },
+  { value: 'COR 2b, LOE B-R', label: 'COR 2b, LOE B-R' },
+  { value: 'COR 2b, LOE B-NR', label: 'COR 2b, LOE B-NR' },
+  { value: 'COR 2b, LOE C-LD', label: 'COR 2b, LOE C-LD' },
+  { value: 'COR 2b, LOE C-EO', label: 'COR 2b, LOE C-EO' },
+  { value: 'COR 3: No Benefit, LOE A', label: 'COR 3: No Benefit, LOE A' },
+  { value: 'COR 3: No Benefit, LOE B-R', label: 'COR 3: No Benefit, LOE B-R' },
+  { value: 'COR 3: No Benefit, LOE B-NR', label: 'COR 3: No Benefit, LOE B-NR' },
+  { value: 'COR 3: No Benefit, LOE C-LD', label: 'COR 3: No Benefit, LOE C-LD' },
+  { value: 'COR 3: No Benefit, LOE C-EO', label: 'COR 3: No Benefit, LOE C-EO' },
+  { value: 'COR 3: Harm, LOE A', label: 'COR 3: Harm, LOE A' },
+  { value: 'COR 3: Harm, LOE B-R', label: 'COR 3: Harm, LOE B-R' },
+  { value: 'COR 3: Harm, LOE B-NR', label: 'COR 3: Harm, LOE B-NR' },
+  { value: 'COR 3: Harm, LOE C-LD', label: 'COR 3: Harm, LOE C-LD' },
+  { value: 'COR 3: Harm, LOE C-EO', label: 'COR 3: Harm, LOE C-EO' },
+];
 
 interface QuestionEditorProps {
   question: Question;
@@ -199,18 +229,70 @@ export function QuestionEditor({
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <Input
-          id="section"
-          label="Section"
-          value={section}
-          onChange={(e) => setSection(e.target.value)}
-        />
-        <Input
-          id="cor_loe"
-          label="COR / LOE"
-          value={corLoe}
-          onChange={(e) => setCorLoe(e.target.value)}
-        />
+        <div className="w-full">
+          <div className="flex items-center gap-1 mb-1">
+            <label htmlFor="section" className="block text-sm font-medium text-gray-700">
+              Section
+            </label>
+            <Tooltip
+              content="The specific section of the source document this question was derived from (e.g., &quot;Section 4.2 — Management of STEMI&quot;). Anchors the question back to its source material."
+            >
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-xs cursor-help">
+                ?
+              </span>
+            </Tooltip>
+          </div>
+          <input
+            id="section"
+            type="text"
+            value={section}
+            onChange={(e) => setSection(e.target.value)}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-mid focus:border-brand-mid text-gray-900 placeholder-gray-400"
+          />
+        </div>
+        <div className="w-full">
+          <div className="flex items-center gap-1 mb-1">
+            <label htmlFor="cor_loe" className="block text-sm font-medium text-gray-700">
+              COR / LOE
+            </label>
+            <Tooltip
+              content={
+                <>
+                  <strong>Class of Recommendation (COR)</strong> — How strongly a treatment is recommended.
+                  <br />1 = Strong, 2a = Moderate, 2b = Weak, 3 = No Benefit or Harm.
+                  <br /><br />
+                  <strong>Level of Evidence (LOE)</strong> — Quality of supporting evidence.
+                  <br />A = High-quality RCTs, B-R = Randomized, B-NR = Non-randomized, C-LD = Limited data, C-EO = Expert opinion.
+                  <br /><br />
+                  Only relevant when the source PDF is a clinical guideline.
+                </>
+              }
+            >
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-500 text-xs cursor-help">
+                ?
+              </span>
+            </Tooltip>
+          </div>
+          <select
+            id="cor_loe"
+            value={COR_LOE_OPTIONS.some((o) => o.value === corLoe) ? corLoe : '__custom__'}
+            onChange={(e) => {
+              if (e.target.value !== '__custom__') {
+                setCorLoe(e.target.value);
+              }
+            }}
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-brand-mid focus:border-brand-mid text-gray-900 bg-white"
+          >
+            {COR_LOE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+            {corLoe && !COR_LOE_OPTIONS.some((o) => o.value === corLoe) && (
+              <option value="__custom__">{corLoe} (custom)</option>
+            )}
+          </select>
+        </div>
       </div>
     </div>
   );
