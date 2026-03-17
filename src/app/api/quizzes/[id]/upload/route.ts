@@ -1,5 +1,7 @@
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { extractTextFromPDF } from '@/lib/pdf/extract-text';
+import { extractSourceReference } from '@/lib/ai/extract-source-reference';
+import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -57,6 +59,24 @@ export async function POST(
     // Extract text
     const extraction = await extractTextFromPDF(buffer);
 
+    // Try to extract a formatted citation using Haiku (non-blocking)
+    let sourceReference: string | null = null;
+    try {
+      const serviceClient = createServiceClient();
+      const { data: educator } = await serviceClient
+        .from('educators')
+        .select('anthropic_api_key_encrypted')
+        .eq('id', user.id)
+        .single();
+
+      if (educator?.anthropic_api_key_encrypted) {
+        const apiKey = decrypt(educator.anthropic_api_key_encrypted);
+        sourceReference = await extractSourceReference(extraction.text, apiKey);
+      }
+    } catch {
+      // Non-fatal — citation extraction is best-effort
+    }
+
     // Upload PDF to Supabase Storage
     const storagePath = `quizzes/${params.id}/${file.name}`;
     const { error: storageError } = await supabase.storage
@@ -71,19 +91,21 @@ export async function POST(
       // Non-fatal — continue without storage
     }
 
-    // Update quiz with extracted text
+    // Update quiz with extracted text and source reference
     await supabase
       .from('quizzes')
       .update({
         source_text: extraction.text,
         source_filename: file.name,
         pdf_storage_path: storagePath,
+        ...(sourceReference ? { source_reference: sourceReference } : {}),
       })
       .eq('id', params.id);
 
     return NextResponse.json({
       pdf_storage_path: storagePath,
       source_text_preview: extraction.preview,
+      source_reference: sourceReference,
       word_count: extraction.wordCount,
       page_count: extraction.pageCount,
       warning: extraction.warning,

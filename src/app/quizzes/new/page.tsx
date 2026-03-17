@@ -13,6 +13,7 @@ export default function NewQuizPage() {
   const [questionCount, setQuestionCount] = useState(10);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
+  const [sourceReference, setSourceReference] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState<number | null>(null);
   const [warning, setWarning] = useState('');
   const [quizId, setQuizId] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function NewQuizPage() {
 
       const uploadData = await uploadRes.json();
       setPreview(uploadData.source_text_preview);
+      setSourceReference(uploadData.source_reference || null);
       setWordCount(uploadData.word_count);
       if (uploadData.warning) setWarning(uploadData.warning);
       setStep('confirm');
@@ -235,7 +237,7 @@ export default function NewQuizPage() {
             <div className="space-y-4">
               <h3 className="font-bold text-gray-900">Text Extracted</h3>
               {wordCount !== null && (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-500">
                   {wordCount.toLocaleString()} words extracted
                 </p>
               )}
@@ -244,11 +246,22 @@ export default function NewQuizPage() {
                   {warning}
                 </p>
               )}
-              <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-auto">
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                  {preview}...
-                </p>
-              </div>
+              {sourceReference ? (
+                <div className="rounded-lg border border-gray-200 bg-white p-4">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
+                    Source
+                  </p>
+                  <p className="text-sm text-gray-800 leading-relaxed">
+                    {sourceReference}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 max-h-48 overflow-auto">
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">
+                    {preview}...
+                  </p>
+                </div>
+              )}
               <Button onClick={handleGenerate} className="w-full">
                 Generate {questionCount} Questions
               </Button>

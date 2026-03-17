@@ -73,14 +73,17 @@ export async function POST(
   // Run generation synchronously — fire-and-forget does NOT work on Vercel
   // because serverless functions are torn down after the response is sent.
   try {
-    // Run question generation and source reference extraction in parallel
+    // Run question generation (and source reference extraction if not yet done)
+    const needsReference = !quiz.source_reference;
     const [questions, sourceReference] = await Promise.all([
       generateQuestions(
         quiz.source_text!,
         quiz.question_count_requested,
         apiKey
       ),
-      extractSourceReference(quiz.source_text!, apiKey).catch(() => null),
+      needsReference
+        ? extractSourceReference(quiz.source_text!, apiKey).catch(() => null)
+        : Promise.resolve(null),
     ]);
 
     // Bulk insert questions
