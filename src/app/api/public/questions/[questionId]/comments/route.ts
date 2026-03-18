@@ -13,11 +13,16 @@ export async function GET(
 ) {
   const supabase = createServiceClient();
 
-  const { data: comments } = await supabase
+  const { data: comments, error } = await supabase
     .from('question_comments')
     .select('id, question_id, commenter_name, comment_text, created_at')
     .eq('question_id', params.questionId)
     .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Comments GET error:', error);
+    return NextResponse.json([]);
+  }
 
   return NextResponse.json(comments ?? []);
 }
@@ -49,6 +54,7 @@ export async function POST(
     .single();
 
   if (error) {
+    console.error('Comment insert error:', error);
     return NextResponse.json({ error: 'Failed to save comment' }, { status: 500 });
   }
 

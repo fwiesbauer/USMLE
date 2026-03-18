@@ -13,10 +13,15 @@ export async function GET(
 ) {
   const supabase = createServiceClient();
 
-  const { data: votes } = await supabase
+  const { data: votes, error } = await supabase
     .from('question_votes')
     .select('vote')
     .eq('question_id', params.questionId);
+
+  if (error) {
+    console.error('Votes GET error:', error);
+    return NextResponse.json({ question_id: params.questionId, thumbs_up: 0, thumbs_down: 0 });
+  }
 
   const thumbs_up = (votes ?? []).filter((v) => v.vote === 1).length;
   const thumbs_down = (votes ?? []).filter((v) => v.vote === -1).length;
@@ -40,20 +45,39 @@ export async function POST(
     );
   }
 
-  // Upsert: if visitor already voted, update their vote
-  const { error } = await supabase
+  // Check if the visitor already has a vote
+  const { data: existing } = await supabase
     .from('question_votes')
-    .upsert(
-      {
+    .select('id, vote')
+    .eq('question_id', params.questionId)
+    .eq('visitor_id', parsed.data.visitor_id)
+    .maybeSingle();
+
+  if (existing) {
+    // Update existing vote
+    const { error: updateError } = await supabase
+      .from('question_votes')
+      .update({ vote: parsed.data.vote })
+      .eq('id', existing.id);
+
+    if (updateError) {
+      console.error('Vote update error:', updateError);
+      return NextResponse.json({ error: 'Failed to update vote' }, { status: 500 });
+    }
+  } else {
+    // Insert new vote
+    const { error: insertError } = await supabase
+      .from('question_votes')
+      .insert({
         question_id: params.questionId,
         visitor_id: parsed.data.visitor_id,
         vote: parsed.data.vote,
-      },
-      { onConflict: 'question_id,visitor_id' }
-    );
+      });
 
-  if (error) {
-    return NextResponse.json({ error: 'Failed to save vote' }, { status: 500 });
+    if (insertError) {
+      console.error('Vote insert error:', insertError);
+      return NextResponse.json({ error: 'Failed to save vote' }, { status: 500 });
+    }
   }
 
   // Return updated counts
