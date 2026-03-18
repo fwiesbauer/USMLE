@@ -166,8 +166,18 @@ export function QuizQuestion({
 
   const progressPercent = ((currentIndex + (reveal ? 1 : 0)) / totalQuestions) * 100;
 
-  // Build DOI URL
-  const doiUrl = reveal?.doi ? `https://doi.org/${reveal.doi}` : '';
+  // Build DOI URL — try explicit doi field first, then extract from reference text
+  const extractDoiUrl = (text: string): string => {
+    const match = text.match(/https?:\/\/doi\.org\/(10\.\d{4,}\/[^\s,;)}\]"']+)/i)
+      || text.match(/doi\.org\/(10\.\d{4,}\/[^\s,;)}\]"']+)/i)
+      || text.match(/doi[:\s]+\s*(10\.\d{4,}\/[^\s,;)}\]"']+)/i);
+    if (match?.[1]) return `https://doi.org/${match[1].replace(/[.)]+$/, '')}`;
+    return '';
+  };
+
+  const doiUrl = reveal?.doi
+    ? `https://doi.org/${reveal.doi}`
+    : (reveal?.source_reference ? extractDoiUrl(reveal.source_reference) : '');
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -281,42 +291,40 @@ export function QuizQuestion({
 
           {/* Source reference with DOI link */}
           {(reveal.source_reference || reveal.section) && (
-            <div className="border-t border-gray-200 pt-3">
-              <p className="text-xs text-gray-500">
-                {reveal.source_reference && (
-                  <>
-                    {doiUrl ? (
-                      <a
-                        href={doiUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand-mid hover:text-brand-dark underline"
-                      >
-                        {reveal.source_reference}
-                      </a>
-                    ) : (
-                      <span>{reveal.source_reference}</span>
-                    )}
-                  </>
-                )}
-                {reveal.source_reference && reveal.section && ' · '}
-                {reveal.section && (
-                  <>
-                    {doiUrl ? (
-                      <a
-                        href={doiUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand-mid hover:text-brand-dark underline"
-                      >
-                        {reveal.section}
-                      </a>
-                    ) : (
-                      <span>{reveal.section}</span>
-                    )}
-                  </>
-                )}
-              </p>
+            <div className="border-t border-gray-200 pt-3 space-y-1">
+              {reveal.source_reference && (
+                <p className="text-xs text-gray-500">
+                  {doiUrl ? (
+                    <a
+                      href={doiUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-mid hover:text-brand-dark underline"
+                    >
+                      {reveal.source_reference}
+                    </a>
+                  ) : (
+                    <span>{reveal.source_reference}</span>
+                  )}
+                </p>
+              )}
+              {reveal.section && (
+                <p className="text-xs text-gray-500">
+                  <span className="font-medium">Document section:</span>{' '}
+                  {doiUrl ? (
+                    <a
+                      href={doiUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-mid hover:text-brand-dark underline"
+                    >
+                      {reveal.section}
+                    </a>
+                  ) : (
+                    <span>{reveal.section}</span>
+                  )}
+                </p>
+              )}
             </div>
           )}
 

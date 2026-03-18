@@ -33,6 +33,7 @@ export async function GET(
     title: quiz.title,
     source_filename: quiz.source_filename,
     source_reference: quiz.source_reference,
+    doi: quiz.doi,
     question_count: questions?.length ?? 0,
     questions: questions ?? [],
   });

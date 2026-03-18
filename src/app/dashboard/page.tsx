@@ -90,9 +90,9 @@ export default async function DashboardPage() {
                       {quiz.status}
                     </span>
                   </div>
-                  {quiz.source_filename && (
+                  {(quiz.source_reference || quiz.source_filename) && (
                     <p className="text-xs text-gray-400 truncate">
-                      {quiz.source_filename}
+                      {quiz.source_reference || quiz.source_filename}
                     </p>
                   )}
                   <p className="text-xs text-gray-400 mt-2">

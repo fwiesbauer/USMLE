@@ -61,6 +61,7 @@ export async function POST(
 
     // Try to extract a formatted citation using Haiku (non-blocking)
     let sourceReference: string | null = null;
+    let doi: string | null = null;
     try {
       const serviceClient = createServiceClient();
       const { data: educator } = await serviceClient
@@ -71,7 +72,9 @@ export async function POST(
 
       if (educator?.anthropic_api_key_encrypted) {
         const apiKey = decrypt(educator.anthropic_api_key_encrypted);
-        sourceReference = await extractSourceReference(extraction.text, apiKey);
+        const result = await extractSourceReference(extraction.text, apiKey);
+        sourceReference = result.reference;
+        doi = result.doi || null;
       }
     } catch {
       // Non-fatal — citation extraction is best-effort
@@ -109,14 +112,18 @@ export async function POST(
       );
     }
 
-    // Save source reference separately — non-fatal if column doesn't exist yet
-    if (sourceReference) {
+    // Save source reference and DOI separately — non-fatal if columns don't exist yet
+    if (sourceReference || doi) {
+      const updateFields: Record<string, string> = {};
+      if (sourceReference) updateFields.source_reference = sourceReference;
+      if (doi) updateFields.doi = doi;
+
       await supabase
         .from('quizzes')
-        .update({ source_reference: sourceReference })
+        .update(updateFields)
         .eq('id', params.id)
         .then(({ error }) => {
-          if (error) console.error('Source reference save error (non-fatal):', error);
+          if (error) console.error('Source reference/DOI save error (non-fatal):', error);
         });
     }
 
@@ -124,6 +131,7 @@ export async function POST(
       pdf_storage_path: storagePath,
       source_text_preview: extraction.preview,
       source_reference: sourceReference,
+      doi,
       word_count: extraction.wordCount,
       page_count: extraction.pageCount,
       warning: extraction.warning,

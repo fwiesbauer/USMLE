@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
@@ -15,7 +15,10 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Get question IDs for this quiz
+  // Use service client for cross-user feedback data
+  const serviceClient = createServiceClient();
+
+  // Get question IDs for this quiz (via auth client to respect ownership)
   const { data: questions } = await supabase
     .from('questions')
     .select('id')
@@ -27,14 +30,14 @@ export async function GET(
 
   const questionIds = questions.map((q) => q.id);
 
-  // Get all votes for these questions
-  const { data: votes } = await supabase
+  // Get all votes for these questions (service client bypasses RLS)
+  const { data: votes } = await serviceClient
     .from('question_votes')
     .select('question_id, vote')
     .in('question_id', questionIds);
 
   // Get comment counts for these questions
-  const { data: comments } = await supabase
+  const { data: comments } = await serviceClient
     .from('question_comments')
     .select('question_id')
     .in('question_id', questionIds);

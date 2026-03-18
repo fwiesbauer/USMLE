@@ -75,7 +75,7 @@ export async function POST(
   try {
     // Run question generation (and source reference extraction if not yet done)
     const needsReference = !quiz.source_reference;
-    const [questions, sourceReference] = await Promise.all([
+    const [questions, refResult] = await Promise.all([
       generateQuestions(
         quiz.source_text!,
         quiz.question_count_requested,
@@ -85,6 +85,8 @@ export async function POST(
         ? extractSourceReference(quiz.source_text!, apiKey).catch(() => null)
         : Promise.resolve(null),
     ]);
+    const sourceReference = refResult?.reference || null;
+    const doi = refResult?.doi || null;
 
     // Bulk insert questions
     const questionRows = questions.map((q) => ({
@@ -125,6 +127,7 @@ export async function POST(
       .update({
         status: 'review',
         ...(sourceReference ? { source_reference: sourceReference } : {}),
+        ...(doi ? { doi } : {}),
       })
       .eq('id', params.id);
 
