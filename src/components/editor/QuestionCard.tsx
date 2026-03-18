@@ -2,11 +2,18 @@
 
 import type { Question } from '@/types/quiz';
 
+interface QuestionFeedback {
+  thumbs_up: number;
+  thumbs_down: number;
+  comment_count: number;
+}
+
 interface QuestionCardProps {
   question: Question;
   isSelected: boolean;
   isEdited: boolean;
   onClick: () => void;
+  feedback?: QuestionFeedback;
 }
 
 export function QuestionCard({
@@ -14,7 +21,10 @@ export function QuestionCard({
   isSelected,
   isEdited,
   onClick,
+  feedback,
 }: QuestionCardProps) {
+  const hasAnyFeedback = feedback && (feedback.thumbs_up > 0 || feedback.thumbs_down > 0 || feedback.comment_count > 0);
+
   return (
     <button
       onClick={onClick}
@@ -48,6 +58,30 @@ export function QuestionCard({
       <p className="text-xs text-gray-500 mt-1 truncate">
         {question.question_text}
       </p>
+      {/* Feedback indicators */}
+      {hasAnyFeedback && (
+        <div className="flex items-center gap-3 mt-1.5">
+          {(feedback.thumbs_up > 0 || feedback.thumbs_down > 0) && (
+            <div className="flex items-center gap-2 text-xs">
+              {feedback.thumbs_up > 0 && (
+                <span className="text-correct-dark" title={`${feedback.thumbs_up} thumbs up`}>
+                  👍 {feedback.thumbs_up}
+                </span>
+              )}
+              {feedback.thumbs_down > 0 && (
+                <span className="text-wrong-dark" title={`${feedback.thumbs_down} thumbs down`}>
+                  👎 {feedback.thumbs_down}
+                </span>
+              )}
+            </div>
+          )}
+          {feedback.comment_count > 0 && (
+            <span className="text-xs text-gray-400" title={`${feedback.comment_count} comment${feedback.comment_count !== 1 ? 's' : ''}`}>
+              💬 {feedback.comment_count}
+            </span>
+          )}
+        </div>
+      )}
     </button>
   );
 }

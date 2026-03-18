@@ -8,7 +8,15 @@ import { Card } from '@/components/ui/Card';
 import { QuestionCard } from '@/components/editor/QuestionCard';
 import { QuestionEditor } from '@/components/editor/QuestionEditor';
 import { Logo } from '@/components/ui/Logo';
-import type { Question, Quiz } from '@/types/quiz';
+import type { Question, Quiz, QuestionComment } from '@/types/quiz';
+
+interface FeedbackStats {
+  [questionId: string]: {
+    thumbs_up: number;
+    thumbs_down: number;
+    comment_count: number;
+  };
+}
 
 export default function ReviewPage() {
   const params = useParams();
@@ -26,6 +34,10 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [editingSource, setEditingSource] = useState(false);
   const [sourceRefDraft, setSourceRefDraft] = useState('');
+  const [editingDoi, setEditingDoi] = useState(false);
+  const [doiDraft, setDoiDraft] = useState('');
+  const [feedbackStats, setFeedbackStats] = useState<FeedbackStats>({});
+  const [selectedComments, setSelectedComments] = useState<QuestionComment[]>([]);
 
   const loadQuiz = useCallback(async () => {
     const supabase = createClient();
@@ -52,9 +64,42 @@ export default function ReviewPage() {
     setLoading(false);
   }, [quizId]);
 
+  const loadFeedback = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}/feedback`);
+      if (res.ok) {
+        const data = await res.json();
+        setFeedbackStats(data);
+      }
+    } catch {
+      // Non-critical, silently fail
+    }
+  }, [quizId]);
+
+  const loadCommentsForQuestion = useCallback(async (questionId: string) => {
+    try {
+      const res = await fetch(`/api/public/questions/${questionId}/comments`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedComments(data);
+      }
+    } catch {
+      setSelectedComments([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadQuiz();
-  }, [loadQuiz]);
+    loadFeedback();
+  }, [loadQuiz, loadFeedback]);
+
+  // Load comments when selected question changes
+  useEffect(() => {
+    const q = questions[selectedIndex];
+    if (q) {
+      loadCommentsForQuestion(q.id);
+    }
+  }, [selectedIndex, questions, loadCommentsForQuestion]);
 
   // Build share URL for already-published quizzes
   const existingShareUrl =
@@ -118,6 +163,16 @@ export default function ReviewPage() {
     } finally {
       setPublishing(false);
     }
+  };
+
+  const handleSaveDoi = async (doi: string) => {
+    await fetch(`/api/quizzes/${quizId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ doi }),
+    });
+    setQuiz((prev) => prev ? { ...prev, doi } : prev);
+    setEditingDoi(false);
   };
 
   if (loading) {
@@ -195,6 +250,72 @@ export default function ReviewPage() {
                 )}
               </div>
             ) : null}
+            {/* DOI field */}
+            <div className="mt-1 flex items-center gap-2 group">
+              {editingDoi ? (
+                <div className="flex items-center gap-2 flex-1 max-w-xl">
+                  <span className="text-xs text-gray-400">DOI:</span>
+                  <input
+                    autoFocus
+                    value={doiDraft}
+                    onChange={(e) => setDoiDraft(e.target.value)}
+                    placeholder="e.g. 10.1234/example"
+                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter') {
+                        await handleSaveDoi(doiDraft);
+                      } else if (e.key === 'Escape') {
+                        setEditingDoi(false);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="text-xs text-brand-mid hover:text-brand-dark"
+                    onClick={() => handleSaveDoi(doiDraft)}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                    onClick={() => setEditingDoi(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <span className="text-xs text-gray-400">
+                    {quiz.doi ? (
+                      <>
+                        DOI:{' '}
+                        <a
+                          href={`https://doi.org/${quiz.doi}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-mid hover:underline"
+                        >
+                          {quiz.doi}
+                        </a>
+                      </>
+                    ) : (
+                      <span className="italic">No DOI set</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      setDoiDraft(quiz.doi || '');
+                      setEditingDoi(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <Button
             onClick={handlePublish}
@@ -282,6 +403,7 @@ export default function ReviewPage() {
                 isSelected={i === selectedIndex}
                 isEdited={editedIds.has(q.id)}
                 onClick={() => setSelectedIndex(i)}
+                feedback={feedbackStats[q.id]}
               />
             ))}
           </div>
@@ -295,6 +417,7 @@ export default function ReviewPage() {
                   question={selectedQuestion}
                   onSave={(updated) => handleSave(selectedQuestion.id, updated)}
                   onDelete={() => handleDelete(selectedQuestion.id)}
+                  comments={selectedComments}
                 />
               </Card>
             ) : (

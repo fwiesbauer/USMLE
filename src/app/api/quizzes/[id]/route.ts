@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 const UpdateQuizSchema = z.object({
   source_reference: z.string().optional(),
+  doi: z.string().optional(),
 });
 
 export async function GET(

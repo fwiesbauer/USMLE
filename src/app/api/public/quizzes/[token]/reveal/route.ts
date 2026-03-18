@@ -16,7 +16,7 @@ export async function POST(
   // Verify the quiz is published with this token
   const { data: quiz, error: quizError } = await supabase
     .from('quizzes')
-    .select('id')
+    .select('id, source_reference, doi')
     .eq('share_token', params.token)
     .eq('status', 'published')
     .single();
@@ -41,7 +41,7 @@ export async function POST(
   // Fetch the question — verify it belongs to this quiz
   const { data: question, error: questionError } = await supabase
     .from('questions')
-    .select('correct_answer, explanation, nuggets, cor_loe')
+    .select('correct_answer, explanation, nuggets, cor_loe, section')
     .eq('id', parsed.data.question_id)
     .eq('quiz_id', quiz.id)
     .single();
@@ -62,5 +62,8 @@ export async function POST(
     explanation: question.explanation,
     nuggets: question.nuggets,
     cor_loe: question.cor_loe,
+    section: question.section || '',
+    source_reference: quiz.source_reference || '',
+    doi: quiz.doi || '',
   });
 }

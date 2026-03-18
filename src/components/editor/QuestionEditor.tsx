@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { MultiSelect } from '@/components/ui/MultiSelect';
 import { Tooltip } from '@/components/ui/Tooltip';
-import type { Question } from '@/types/quiz';
+import type { Question, QuestionComment } from '@/types/quiz';
 
 const ORGAN_SYSTEM_OPTIONS = [
   'Human Development',
@@ -88,12 +88,14 @@ interface QuestionEditorProps {
   question: Question;
   onSave: (updated: Partial<Question>) => Promise<void>;
   onDelete: () => Promise<void>;
+  comments?: QuestionComment[];
 }
 
 export function QuestionEditor({
   question,
   onSave,
   onDelete,
+  comments = [],
 }: QuestionEditorProps) {
   const [topic, setTopic] = useState(question.topic);
   const [vignette, setVignette] = useState(question.vignette);
@@ -408,6 +410,30 @@ export function QuestionEditor({
           </select>
         </div>
       </div>
+
+      {/* Student Comments */}
+      {comments.length > 0 && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-4">
+          <p className="text-sm font-semibold text-gray-700 mb-3">
+            Student Comments ({comments.length})
+          </p>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {comments.map((c) => (
+              <div key={c.id} className="bg-white rounded-lg px-3 py-2 border border-gray-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-medium text-gray-700">
+                    {c.commenter_name || 'Anonymous'}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(c.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">{c.comment_text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

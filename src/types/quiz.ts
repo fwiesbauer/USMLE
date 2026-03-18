@@ -27,6 +27,7 @@ export interface Quiz {
   title: string;
   source_filename: string;
   source_reference?: string;
+  doi?: string;
   status: 'draft' | 'generating' | 'review' | 'published';
   share_token?: string;
   question_count_requested: number;
@@ -52,6 +53,25 @@ export interface RevealResponse {
   explanation: string;
   nuggets: string[];
   cor_loe: string;
+  section: string;
+  source_reference: string;
+  doi: string;
+}
+
+/** Comment on a question */
+export interface QuestionComment {
+  id: string;
+  question_id: string;
+  commenter_name: string | null;
+  comment_text: string;
+  created_at: string;
+}
+
+/** Vote counts for a question */
+export interface QuestionVoteCounts {
+  question_id: string;
+  thumbs_up: number;
+  thumbs_down: number;
 }
 
 /** Stored in localStorage — learner progress (no backend) */
