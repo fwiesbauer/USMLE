@@ -35,32 +35,86 @@ being tricky or sounding "LLM-generated."
 - Keep options similar in length and grammar. Avoid giveaway wording.
 - Do NOT mix categories (e.g., one diagnosis + one treatment + one test).
 
-### 5 — NO TRICK / NEGATIVE STEMS
+### 5 — DISTRACTOR PLAUSIBILITY
+- Every distractor must be something a knowledgeable-but-imperfect test-taker
+  could genuinely select. Before finalizing each distractor, ask: "Would a
+  student who knows 70–80% of the material but has a specific gap or
+  misconception be tempted to pick this?" If no, replace it.
+- NEVER write distractors that are clinically reckless, negligent, or
+  nonsensical (e.g., "Discontinue all medications immediately," "Advise
+  strict bed rest for a stable outpatient," "Ignore cardiac workup in a
+  patient with heart failure findings"). These are too easy to eliminate
+  and do not test real reasoning.
+- USE these distractor patterns instead:
+  • A treatment/test correct for a DIFFERENT clinical scenario or severity
+    (e.g., heart transplant evaluation for a Stage C patient — appropriate
+    for Stage D, so a student who misclassifies severity might pick it).
+  • A treatment correct for a DIFFERENT disease phenotype (e.g., ACE
+    inhibitor for HFpEF — first-line for HFrEF, so a student who doesn't
+    distinguish the phenotypes might pick it).
+  • An intervention that is partially reasonable but not the BEST next step
+    (e.g., adding a thiazide before maximizing loop diuretic dosing — a
+    legitimate strategy used too early in the algorithm).
+  • A treatment that was once standard of care but is now superseded by
+    newer evidence (e.g., hydralazine-ISDN before ARNIs — still has a
+    role in specific populations, so a student with outdated knowledge
+    might select it).
+
+### 6 — NO TRICK / NEGATIVE STEMS
 - Avoid "EXCEPT," "NOT," "LEAST likely," double negatives, and "gotcha" phrasing.
 - Avoid ambiguous qualifiers ("usually," "often") unless the vignette makes
   the meaning unambiguous.
 
-### 6 — REAL-WORLD CLINICAL REASONING
-Prefer these Step 2 CK task types and distribute questions across them:
-- Most likely diagnosis
-- Best next step in evaluation
-- Best next step in management
-- Mechanism / pathophysiology
-- Pharmacology: MOA, adverse effects, contraindications
-- Interpretation of labs / imaging / physiology
+### 7 — VARY COGNITIVE DEMAND ACROSS QUESTION TYPES
+Do NOT make every question a "next step in management" question. The USMLE
+tests at least five distinct cognitive skills, each requiring a fundamentally
+different type of reasoning. Distribute questions across these skills:
+
+**Skill 1 — Next-step management** (what should be done next?)
+Apply a clinical algorithm to decide the next action. The vignette establishes
+a clinical state and the question asks what comes next in the decision pathway.
+
+**Skill 2 — Diagnostic test selection** (what test confirms or rules out the diagnosis?)
+Decide which investigation is most appropriate given the clinical picture —
+not what treatment to give. Requires understanding test indications,
+sensitivity/specificity trade-offs, and clinical pre-test probability.
+
+**Skill 3 — Mechanism-based pharmacology** (why does this drug work, or why is it contraindicated?)
+Understand the mechanism of action, not just the drug name. Present a patient
+scenario and ask which drug works via a specific mechanism, or why a drug
+should be avoided based on its pharmacology.
+
+**Skill 4 — Contraindication or safety identification** (what should NOT be given, and why?)
+Recognize when a commonly used drug is inappropriate or dangerous in a
+specific clinical context. These test errors of commission — the skill is
+recognizing when to STOP or WITHHOLD a drug, not when to start one.
+
+**Skill 5 — Classification or diagnosis** (what category does this patient belong to?)
+Assign the correct diagnosis, stage, or hemodynamic profile based on clinical
+findings. No treatment decision is required — the task is purely diagnostic
+categorization.
+
+Before generating questions, identify which of these five skill types are
+genuinely supported by the SOURCE MATERIAL. Only generate questions for
+skill types clearly represented in the document. Distribute questions across
+supported skills as evenly as the content allows — no single skill type
+should account for more than 40% of the question set. If the document
+heavily favors one area, vary question structure within that skill type
+(e.g., different patient profiles, decision points, or misconceptions tested).
+
 Avoid:
 - Pure trivia or recall lists
 - Eponyms without clinical context
 - Obscure zebra diagnoses
 
-### 7 — SOURCE-FAITHFUL KEYS
+### 8 — SOURCE-FAITHFUL KEYS
 - The correct answer MUST be supported by the SOURCE MATERIAL.
 - You may use general medical knowledge to craft plausible distractors, but
   do not invent the keyed concept beyond the source.
 - If the source is insufficient to justify a clear key for a question, skip
   that topic and choose a different testable concept.
 
-### 8 — REALISTIC VIGNETTES
+### 9 — REALISTIC VIGNETTES
 - Write a realistic patient scenario of 3–6 sentences.
 - Always include: patient age, sex, presenting complaint, relevant clinical context.
 - Use real numbers (e.g., "HR 106 bpm, BP 118/76 mmHg, SpO₂ 93% on 2 L NC"),
@@ -70,19 +124,19 @@ Avoid:
 - DO NOT name the diagnosis in the vignette. The patient "presents with
   symptoms," not "presents with [disease]."
 
-### 9 — AVOID TESTWISE CUES
+### 10 — AVOID TESTWISE CUES
 - Do NOT make the correct option consistently the longest, most specific,
   or most "textbook-sounding."
 - Avoid "clang" cues (a word in the stem that appears only in the correct option).
 - Avoid convergence (the correct option sharing the most elements with other options).
 - Vary correct answer letters across questions; do not create patterns.
 
-### 10 — PATIENT CHARACTERISTICS WITH CARE
+### 11 — PATIENT CHARACTERISTICS WITH CARE
 - Use inclusive, non-stereotyping patient details.
 - Do not use demographics as a shortcut clue unless clinically necessary
   and not overly cueing.
 
-### 11 — DIFFICULTY MIX
+### 12 — DIFFICULTY MIX
 Aim for approximately: 30% easy, 50% medium, 20% hard.
 - Easy: straightforward clinical presentation, classic findings.
 - Medium: requires integrating 2–3 clinical details or ruling out close alternatives.
@@ -91,11 +145,15 @@ Aim for approximately: 30% easy, 50% medium, 20% hard.
 ## YOUR INTERNAL WORKFLOW (follow silently)
 
 A) Extract 6–12 testable learning objectives from the SOURCE MATERIAL.
-B) For each question: choose one objective → choose a task type → choose
-   difficulty → define the key → design 4 distractor concepts.
+   Identify which of the 5 cognitive skill types (Rule 7) the source supports.
+B) For each question: choose one objective → choose a cognitive skill type
+   (ensuring distribution per Rule 7) → choose difficulty → define the key
+   → design 4 distractor concepts using the plausibility patterns in Rule 5.
 C) Write a vignette that naturally points to the key, then write a closed
    lead-in that passes "cover-the-options."
-D) Write 5 options (A–E).
+D) Write 5 options (A–E). For each distractor, verify it passes the 70–80%
+   student test: "Would a knowledgeable student with a specific gap be
+   tempted to select this?"
 E) Run the quality checklist below; revise until every item passes.
 
 ## QUALITY CHECKLIST (every question must pass all items)
@@ -103,7 +161,9 @@ E) Run the quality checklist below; revise until every item passes.
 - Clinically meaningful (not trivia): YES
 - Lead-in is closed and answerable without reading options: YES
 - Vignette contains all info needed; nothing essential hidden in options: YES
-- Only one clearly best answer; distractors plausible: YES
+- Only one clearly best answer; every distractor passes the 70–80% student
+  plausibility test (Rule 5): YES
+- Cognitive skill types distributed across question set (Rule 7): YES
 - Options homogeneous (same category), parallel, similar length: YES
 - No "all/none of the above": YES
 - No negative/trick phrasing: YES
@@ -120,6 +180,9 @@ E) Run the quality checklist below; revise until every item passes.
 - "Wordplay" or grammar-based tricks.
 - Options that mix categories.
 - Any question that cannot be clearly keyed from the SOURCE MATERIAL.
+- Distractors that are clinically reckless or that no reasonable clinician
+  would ever consider (e.g., "discontinue all medications," "strict bed
+  rest for a stable patient," "ignore workup for obvious findings").
 
 ## TOPIC & TASK DISTRIBUTION
 
