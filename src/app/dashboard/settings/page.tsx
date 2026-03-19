@@ -8,17 +8,28 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
 
+type AIProvider = 'anthropic' | 'openai' | 'google';
+
+const AI_PROVIDERS: { value: AIProvider; label: string; placeholder: string }[] = [
+  { value: 'anthropic', label: 'Anthropic (Claude)', placeholder: 'sk-ant-...' },
+  { value: 'openai', label: 'OpenAI (GPT)', placeholder: 'sk-...' },
+  { value: 'google', label: 'Google (Gemini)', placeholder: 'AIza...' },
+];
+
 export default function SettingsPage() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
+  const [provider, setProvider] = useState<AIProvider>('anthropic');
   const [apiKey, setApiKey] = useState('');
-  const [apiKeyPlaceholder, setApiKeyPlaceholder] = useState('');
+  const [hasExistingKey, setHasExistingKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingKey, setSavingKey] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const currentProvider = AI_PROVIDERS.find((p) => p.value === provider)!;
 
   useEffect(() => {
     async function loadProfile() {
@@ -41,8 +52,11 @@ export default function SettingsPage() {
       if (educator) {
         setDisplayName(educator.display_name || '');
         setEmail(educator.email);
+        if (educator.ai_provider) {
+          setProvider(educator.ai_provider as AIProvider);
+        }
         if (educator.anthropic_api_key_encrypted) {
-          setApiKeyPlaceholder('sk-ant-***************');
+          setHasExistingKey(true);
         }
       }
       setLoading(false);
@@ -88,7 +102,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/settings/api-key', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey }),
+        body: JSON.stringify({ api_key: apiKey, provider }),
       });
 
       if (!res.ok) {
@@ -97,7 +111,7 @@ export default function SettingsPage() {
       } else {
         setMessage('API key updated.');
         setApiKey('');
-        setApiKeyPlaceholder('sk-ant-***************');
+        setHasExistingKey(true);
       }
     } finally {
       setSavingKey(false);
@@ -159,19 +173,47 @@ export default function SettingsPage() {
 
         {/* API Key */}
         <Card>
-          <h3 className="font-bold text-gray-900 mb-4">Anthropic API Key</h3>
+          <h3 className="font-bold text-gray-900 mb-4">AI Provider & API Key</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Your API key is encrypted and stored securely. It is never exposed in
-            client responses.
+            Choose your AI provider and enter your API key. The key is encrypted
+            and stored securely — it is never exposed in client responses.
           </p>
           <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="provider"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                AI Provider
+              </label>
+              <select
+                id="provider"
+                value={provider}
+                onChange={(e) => {
+                  setProvider(e.target.value as AIProvider);
+                  setApiKey('');
+                  setHasExistingKey(false);
+                }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              >
+                {AI_PROVIDERS.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Input
               id="apiKey"
               label="API Key"
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={apiKeyPlaceholder || 'sk-ant-...'}
+              placeholder={
+                hasExistingKey
+                  ? `${currentProvider.placeholder.replace('...', '***************')}`
+                  : currentProvider.placeholder
+              }
             />
             <Button onClick={handleSaveApiKey} loading={savingKey}>
               Update API Key

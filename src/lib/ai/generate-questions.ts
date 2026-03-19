@@ -1,6 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { buildQuestionGenerationPrompt } from './prompt';
+import { createCompletion, getDefaultModel, type AIProvider } from './providers';
 import type { GeneratedQuestion, QuizOption } from '@/types/quiz';
 
 const QuizOptionSchema = z.object({
@@ -29,34 +29,25 @@ const GeneratedQuestionsSchema = z.array(GeneratedQuestionSchema);
 export async function generateQuestions(
   sourceText: string,
   questionCount: number,
-  apiKey: string
+  apiKey: string,
+  provider: AIProvider = 'anthropic'
 ): Promise<GeneratedQuestion[]> {
-  const client = new Anthropic({ apiKey });
-
   const prompt = buildQuestionGenerationPrompt(sourceText, questionCount);
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 16000,
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
+  const responseText = await createCompletion({
+    apiKey,
+    provider,
+    model: getDefaultModel(provider),
+    maxTokens: 16000,
+    prompt,
   });
-
-  const textContent = response.content.find((block) => block.type === 'text');
-  if (!textContent || textContent.type !== 'text') {
-    throw new Error('No text content in AI response');
-  }
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(textContent.text);
+    parsed = JSON.parse(responseText);
   } catch {
     // Try to extract JSON array from the response if it has surrounding text
-    const jsonMatch = textContent.text.match(/\[[\s\S]*\]/);
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('AI response did not contain valid JSON');
     }

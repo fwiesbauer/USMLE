@@ -19,6 +19,7 @@ export interface Database {
           email: string;
           display_name: string | null;
           anthropic_api_key_encrypted: string | null;
+          ai_provider: string;
           created_at: string;
         };
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           email: string;
           display_name?: string | null;
           anthropic_api_key_encrypted?: string | null;
+          ai_provider?: string;
           created_at?: string;
         };
         Update: {
@@ -33,6 +35,7 @@ export interface Database {
           email?: string;
           display_name?: string | null;
           anthropic_api_key_encrypted?: string | null;
+          ai_provider?: string;
           created_at?: string;
         };
         Relationships: [];

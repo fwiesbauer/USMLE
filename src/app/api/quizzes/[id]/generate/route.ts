@@ -3,6 +3,7 @@ import { generateQuestions } from '@/lib/ai/generate-questions';
 import { extractSourceReference } from '@/lib/ai/extract-source-reference';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
+import type { AIProvider } from '@/lib/ai/providers';
 
 // Allow up to 300s for AI generation (Vercel Pro: 300s, Hobby: 60s)
 export const maxDuration = 300;
@@ -39,20 +40,22 @@ export async function POST(
     );
   }
 
-  // Get educator's API key
+  // Get educator's API key and provider
   const serviceClient = createServiceClient();
   const { data: educator } = await serviceClient
     .from('educators')
-    .select('anthropic_api_key_encrypted')
+    .select('anthropic_api_key_encrypted, ai_provider')
     .eq('id', user.id)
     .single();
 
   if (!educator?.anthropic_api_key_encrypted) {
     return NextResponse.json(
-      { error: 'No API key configured. Please add your Anthropic API key in Settings.' },
+      { error: 'No API key configured. Please add your API key in Settings.' },
       { status: 400 }
     );
   }
+
+  const provider = (educator.ai_provider || 'anthropic') as AIProvider;
 
   let apiKey: string;
   try {
@@ -79,10 +82,11 @@ export async function POST(
       generateQuestions(
         quiz.source_text!,
         quiz.question_count_requested,
-        apiKey
+        apiKey,
+        provider
       ),
       needsReference
-        ? extractSourceReference(quiz.source_text!, apiKey).catch(() => null)
+        ? extractSourceReference(quiz.source_text!, apiKey, provider).catch(() => null)
         : Promise.resolve(null),
     ]);
     const sourceReference = refResult?.reference || null;

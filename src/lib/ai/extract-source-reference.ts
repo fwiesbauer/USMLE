@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { createCompletion, getFastModel, type AIProvider } from './providers';
 
 /**
  * Extracts a formatted bibliographic reference from source text.
- * Uses a fast, cheap model call (Haiku) to keep costs low.
+ * Uses a fast, cheap model call to keep costs low.
  *
  * - For scientific papers/guidelines: returns NEJM-style numbered reference.
  * - For other documents: returns a descriptive title with authors if available.
@@ -11,23 +11,16 @@ import Anthropic from '@anthropic-ai/sdk';
  */
 export async function extractSourceReference(
   sourceText: string,
-  apiKey: string
+  apiKey: string,
+  provider: AIProvider = 'anthropic'
 ): Promise<{ reference: string; doi: string }> {
-  const client = new Anthropic({ apiKey });
-
   // Send only the first ~4000 chars — bibliographic info is always near the top
   const excerpt = sourceText.slice(0, 4000);
 
   // First, try to extract DOI via regex from the source text (more reliable)
   const doi = extractDoiFromText(sourceText);
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 400,
-    messages: [
-      {
-        role: 'user',
-        content: `Analyze the following document excerpt. Your job is to extract a formatted source reference.
+  const prompt = `Analyze the following document excerpt. Your job is to extract a formatted source reference.
 
 RULES:
 1. If this is a scientific paper or clinical guideline, extract the bibliographic details and format as a single NEJM-style numbered reference:
@@ -47,18 +40,18 @@ RULES:
 3. Output ONLY the single formatted reference line. No explanation, no preamble.
 
 DOCUMENT EXCERPT:
-${excerpt}`,
-      },
-    ],
+${excerpt}`;
+
+  const responseText = await createCompletion({
+    apiKey,
+    provider,
+    model: getFastModel(provider),
+    maxTokens: 400,
+    prompt,
   });
 
-  const textContent = response.content.find((block) => block.type === 'text');
-  if (!textContent || textContent.type !== 'text') {
-    return { reference: '', doi };
-  }
-
   // Clean up: remove leading/trailing whitespace, ensure it starts with "1."
-  let ref = textContent.text.trim();
+  let ref = responseText.trim();
   if (!ref.startsWith('1.')) {
     ref = '1. ' + ref;
   }

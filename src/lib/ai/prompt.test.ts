@@ -4,7 +4,7 @@ import { buildQuestionGenerationPrompt } from './prompt';
 describe('buildQuestionGenerationPrompt', () => {
   it('includes the question count in the prompt', () => {
     const prompt = buildQuestionGenerationPrompt('Sample text', 10);
-    expect(prompt).toContain('generate 10 high-quality');
+    expect(prompt).toContain('create 10');
   });
 
   it('includes the source text in the prompt', () => {
@@ -16,8 +16,8 @@ describe('buildQuestionGenerationPrompt', () => {
   it('includes USMLE formatting rules', () => {
     const prompt = buildQuestionGenerationPrompt('Text', 3);
     expect(prompt).toContain('USMLE Step 2 CK');
-    expect(prompt).toContain('clinical vignette');
-    expect(prompt).toContain('five options');
+    expect(prompt).toContain('vignette-based');
+    expect(prompt).toContain('5 options (A–E)');
     expect(prompt).toContain('JSON array');
   });
 

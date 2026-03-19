@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 const ApiKeySchema = z.object({
   api_key: z.string().min(1),
+  provider: z.enum(['anthropic', 'openai', 'google']),
 });
 
 export async function PUT(request: NextRequest) {
@@ -34,7 +35,10 @@ export async function PUT(request: NextRequest) {
     const serviceClient = createServiceClient();
     const { error } = await serviceClient
       .from('educators')
-      .update({ anthropic_api_key_encrypted: encrypted })
+      .update({
+        anthropic_api_key_encrypted: encrypted,
+        ai_provider: parsed.data.provider,
+      })
       .eq('id', user.id);
 
     if (error) {
