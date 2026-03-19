@@ -2,34 +2,38 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
 
-export default function LoginPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+      const { error: updateError } = await supabase.auth.updateUser({
         password,
       });
 
-      if (authError) {
-        setError(authError.message);
+      if (updateError) {
+        setError(updateError.message);
         return;
       }
 
@@ -48,28 +52,33 @@ export default function LoginPage() {
         <div className="flex justify-center mb-6">
           <Logo href="/" size="md" />
         </div>
-        <h1 className="text-xl font-bold text-brand-dark mb-6 text-center">
-          Sign in to your account
+        <h1 className="text-xl font-bold text-brand-dark mb-2 text-center">
+          Set a new password
         </h1>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          Enter your new password below.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            id="email"
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            placeholder="you@example.com"
-          />
-          <Input
             id="password"
-            label="Password"
+            label="New Password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             placeholder="••••••••"
+            minLength={6}
+          />
+          <Input
+            id="confirmPassword"
+            label="Confirm Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            placeholder="••••••••"
+            minLength={6}
           />
 
           {error && (
@@ -78,26 +87,10 @@ export default function LoginPage() {
             </p>
           )}
 
-          <div className="flex justify-end">
-            <Link
-              href="/forgot-password"
-              className="text-sm text-brand-mid hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
-
           <Button type="submit" loading={loading} className="w-full">
-            Sign In
+            Update Password
           </Button>
         </form>
-
-        <p className="text-sm text-gray-500 text-center mt-4">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-brand-mid hover:underline">
-            Sign up
-          </Link>
-        </p>
       </Card>
     </div>
   );

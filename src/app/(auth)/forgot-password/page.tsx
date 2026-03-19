@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
@@ -9,12 +8,11 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,18 +21,17 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
-        password,
-      });
+        { redirectTo: `${window.location.origin}/auth/callback?next=/reset-password` }
+      );
 
-      if (authError) {
-        setError(authError.message);
+      if (resetError) {
+        setError(resetError.message);
         return;
       }
 
-      router.push('/dashboard');
-      router.refresh();
+      setSubmitted(true);
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -42,15 +39,38 @@ export default function LoginPage() {
     }
   };
 
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="max-w-md w-full text-center">
+          <h1 className="text-2xl font-bold text-brand-dark mb-4">
+            Check your email
+          </h1>
+          <p className="text-gray-600 mb-4">
+            If an account exists for <strong>{email}</strong>, we sent a password
+            reset link. Click the link to set a new password.
+          </p>
+          <Link href="/login" className="text-brand-mid hover:underline">
+            Back to Sign In
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <Card className="max-w-md w-full">
         <div className="flex justify-center mb-6">
           <Logo href="/" size="md" />
         </div>
-        <h1 className="text-xl font-bold text-brand-dark mb-6 text-center">
-          Sign in to your account
+        <h1 className="text-xl font-bold text-brand-dark mb-2 text-center">
+          Reset your password
         </h1>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          Enter your email address and we&apos;ll send you a link to reset your
+          password.
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -62,15 +82,6 @@ export default function LoginPage() {
             required
             placeholder="you@example.com"
           />
-          <Input
-            id="password"
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="••••••••"
-          />
 
           {error && (
             <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
@@ -78,24 +89,15 @@ export default function LoginPage() {
             </p>
           )}
 
-          <div className="flex justify-end">
-            <Link
-              href="/forgot-password"
-              className="text-sm text-brand-mid hover:underline"
-            >
-              Forgot password?
-            </Link>
-          </div>
-
           <Button type="submit" loading={loading} className="w-full">
-            Sign In
+            Send Reset Link
           </Button>
         </form>
 
         <p className="text-sm text-gray-500 text-center mt-4">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-brand-mid hover:underline">
-            Sign up
+          Remember your password?{' '}
+          <Link href="/login" className="text-brand-mid hover:underline">
+            Sign in
           </Link>
         </p>
       </Card>
