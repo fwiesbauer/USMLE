@@ -20,6 +20,8 @@ export function RetrySection({
   onRetakeFull,
   onBackToResults,
 }: RetrySectionProps) {
+  // Capture the list at mount so parent progress updates don't shrink the array mid-retry
+  const [retryQuestions, setRetryQuestions] = useState(() => [...incorrectQuestions]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [attempts, setAttempts] = useState<QuestionAttempt[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -42,12 +44,12 @@ export function RetrySection({
   );
 
   const handleNext = useCallback(() => {
-    if (currentIndex + 1 >= incorrectQuestions.length) {
+    if (currentIndex + 1 >= retryQuestions.length) {
       setShowResults(true);
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
-  }, [currentIndex, incorrectQuestions.length]);
+  }, [currentIndex, retryQuestions.length]);
 
   if (showResults) {
     const correct = attempts.filter((a) => a.is_correct).length;
@@ -65,10 +67,11 @@ export function RetrySection({
         retryImproved={improved}
         hasIncorrect={stillIncorrect}
         onRetryIncorrect={() => {
-          const stillWrong = incorrectQuestions.filter((q) =>
+          const stillWrong = retryQuestions.filter((q) =>
             attempts.some((a) => a.question_id === q.id && !a.is_correct)
           );
           if (stillWrong.length > 0) {
+            setRetryQuestions(stillWrong);
             setCurrentIndex(0);
             setAttempts([]);
             setShowResults(false);
@@ -82,9 +85,10 @@ export function RetrySection({
 
   return (
     <QuizQuestion
-      question={incorrectQuestions[currentIndex]}
+      key={retryQuestions[currentIndex].id}
+      question={retryQuestions[currentIndex]}
       currentIndex={currentIndex}
-      totalQuestions={incorrectQuestions.length}
+      totalQuestions={retryQuestions.length}
       onAnswer={handleAnswer}
       onNext={handleNext}
     />
