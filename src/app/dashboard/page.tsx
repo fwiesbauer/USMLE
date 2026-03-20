@@ -4,6 +4,7 @@ import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
 import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
+import { SignOutButton } from '@/components/ui/SignOutButton';
 
 export default async function DashboardPage() {
   const supabase = createServerClient();
@@ -52,14 +53,7 @@ export default async function DashboardPage() {
             >
               Settings
             </Link>
-            <form action="/api/auth/logout" method="POST">
-              <button
-                type="submit"
-                className="text-sm text-gray-600 hover:text-brand-mid"
-              >
-                Sign Out
-              </button>
-            </form>
+            <SignOutButton className="text-sm text-gray-600 hover:text-brand-mid" />
           </div>
         </div>
       </header>

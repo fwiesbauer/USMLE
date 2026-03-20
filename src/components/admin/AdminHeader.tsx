@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
+import { SignOutButton } from '@/components/ui/SignOutButton';
 
 interface Breadcrumb {
   label: string;
@@ -36,11 +37,7 @@ export function AdminHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrumb[] }
           <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
             Dashboard
           </Link>
-          <form action="/api/auth/logout" method="POST">
-            <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">
-              Sign Out
-            </button>
-          </form>
+          <SignOutButton className="text-sm text-gray-500 hover:text-gray-700" />
         </div>
       </div>
     </header>
