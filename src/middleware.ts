@@ -1,8 +1,9 @@
 import { createServerClient as createSSRServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const PROTECTED_PATHS = ['/dashboard', '/quizzes'];
+const PROTECTED_PATHS = ['/dashboard', '/quizzes', '/admin'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -62,9 +63,28 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Admin route protection: check role via service client
+  if (pathname.startsWith('/admin')) {
+    const serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    const { data: educator } = await serviceClient
+      .from('educators')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!educator || educator.role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/quizzes/:path*'],
+  matcher: ['/dashboard/:path*', '/quizzes/:path*', '/admin/:path*'],
 };

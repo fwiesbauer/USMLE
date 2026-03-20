@@ -15,11 +15,20 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const { data: quizzes } = await supabase
-    .from('quizzes')
-    .select('*')
-    .eq('educator_id', user.id)
-    .order('created_at', { ascending: false });
+  const [{ data: quizzes }, { data: educator }] = await Promise.all([
+    supabase
+      .from('quizzes')
+      .select('*')
+      .eq('educator_id', user.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('educators')
+      .select('role')
+      .eq('id', user.id)
+      .single(),
+  ]);
+
+  const isAdmin = educator?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -27,6 +36,14 @@ export default async function DashboardPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Logo href="/dashboard" />
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="text-sm font-medium text-gray-600 hover:text-brand-mid"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               href="/dashboard/settings"
               className="text-sm text-gray-600 hover:text-brand-mid"
