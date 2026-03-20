@@ -13,7 +13,8 @@ src/
 │   ├── api/                          # Server-side API routes
 │   │   ├── auth/
 │   │   │   ├── callback/route.ts     # Email confirmation callback
-│   │   │   └── logout/route.ts       # Sign out
+│   │   │   └── logout/route.ts       # Sign out (server-side, 303 redirect)
+│   │   ├── feedback/route.ts         # Submit site feedback (educator only)
 │   │   ├── public/
 │   │   │   ├── quizzes/[token]/route.ts        # Fetch public quiz
 │   │   │   └── questions/[id]/
@@ -28,9 +29,19 @@ src/
 │   │   │   └── feedback/route.ts     # Get vote/comment stats
 │   │   ├── questions/[id]/route.ts   # Edit/delete individual question
 │   │   └── settings/api-key/route.ts # Save AI provider API key
+│   ├── admin/
+│   │   ├── page.tsx                  # Admin dashboard (users + all questions tabs)
+│   │   └── educators/[id]/
+│   │       ├── page.tsx              # Individual educator detail view
+│   │       └── quizzes/[quizId]/page.tsx  # Admin quiz detail with all questions
 │   ├── auth/
 │   │   ├── callback/page.tsx         # Email verification landing
 │   │   └── confirmed/page.tsx        # "Email confirmed" success page
+│   ├── admin/
+│   │   ├── page.tsx                  # Admin dashboard (users + all questions tabs)
+│   │   └── educators/[id]/
+│   │       ├── page.tsx              # Educator detail (their quizzes)
+│   │       └── quizzes/[quizId]/page.tsx  # Quiz detail (all questions)
 │   ├── dashboard/
 │   │   ├── page.tsx                  # Educator quiz list
 │   │   └── settings/page.tsx         # API key + provider settings
@@ -54,12 +65,17 @@ src/
 │   │   ├── QuizWelcome.tsx           # Quiz intro screen + resume prompt
 │   │   ├── QuizResults.tsx           # Final score + question breakdown
 │   │   └── RetrySection.tsx          # Retry only incorrect questions
+│   ├── admin/
+│   │   ├── AdminHeader.tsx           # Admin header with breadcrumbs + sign out
+│   │   └── CategoryBadges.tsx        # Colored badges for organ system/task/discipline
 │   └── ui/
 │       ├── Button.tsx                # Primary/secondary/danger variants
 │       ├── Input.tsx                 # Text input with label
 │       ├── Card.tsx                  # Container card
+│       ├── FeedbackWidget.tsx        # Floating feedback button (Intercom-style)
 │       ├── Logo.tsx                  # App logo with link to landing page
 │       ├── MultiSelect.tsx           # Dropdown for classification tags
+│       ├── SignOutButton.tsx          # Client-side sign out button
 │       └── Tooltip.tsx               # Hover info text
 │
 ├── lib/
@@ -90,7 +106,9 @@ supabase/
     ├── 00003_add_classification_dimensions.sql  # organ_systems, physician_tasks, disciplines
     ├── 00004_add_source_reference.sql           # Bibliographic citation field
     ├── 00005_add_feedback_and_doi.sql           # Comments, votes, DOI
-    └── 00006_add_ai_provider.sql                # Multi-provider support
+    ├── 00006_add_ai_provider.sql                # Multi-provider support
+    ├── 00007_add_site_feedback.sql              # Site feedback table
+    └── 00008_add_educator_role.sql              # Admin role for educators
 
 public/                               # Static assets
 ├── apple-touch-icon.png              # 180x180 iOS icon
@@ -196,8 +214,16 @@ RootLayout
 ├── ForgotPasswordPage             (/forgot-password)
 ├── ResetPasswordPage              (/reset-password)
 ├── EmailConfirmedPage             (/auth/confirmed)
+├── AdminPage                      (/admin)
+│   ├── AdminHeader (Logo, breadcrumbs, SignOutButton)
+│   └── CategoryBadges
+├── AdminEducatorPage              (/admin/educators/[id])
+│   ├── AdminHeader
+│   └── CategoryBadges
+├── AdminQuizPage                  (/admin/educators/[id]/quizzes/[quizId])
+│   └── AdminHeader
 ├── DashboardPage                  (/dashboard)
-│   └── Logo, Card, Button
+│   └── Logo, Card, Button, SignOutButton, FeedbackWidget
 ├── SettingsPage                   (/dashboard/settings)
 │   └── Input, Button
 ├── NewQuizPage                    (/quizzes/new)
@@ -220,7 +246,7 @@ RootLayout
 ### How Auth Works
 
 1. **Supabase Auth** manages user accounts. Sessions are stored as HTTP-only cookies.
-2. **Middleware** (`src/middleware.ts`) intercepts requests to `/dashboard/*` and `/quizzes/*`. If no valid session exists, the user is redirected to `/login`.
+2. **Middleware** (`src/middleware.ts`) intercepts requests to `/dashboard/*`, `/quizzes/*`, and `/admin/*`. If no valid session exists, the user is redirected to `/login`. For `/admin/*` routes, it additionally checks that the educator has `role = 'admin'` in the database (using the service client to bypass RLS), redirecting non-admins to `/dashboard`.
 3. **Row-Level Security (RLS)** on the database ensures educators can only access their own quizzes and questions — even if the API is called directly.
 4. **Public quiz endpoints** (`/api/public/*`) use the Supabase **service role** client, bypassing RLS, because learners are anonymous and have no auth session.
 

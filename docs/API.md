@@ -130,14 +130,30 @@ Response: { success: true }
 
 Encrypts the API key with AES-256-GCM and stores it in the `educators` table along with the selected provider.
 
+### Submit Feedback
+
+```
+POST /api/feedback
+Body: {
+  page_url: string,         // URL of the page the feedback is about (max 500 chars)
+  feedback_type: 'bug' | 'suggestion' | 'question' | 'other',
+  message: string           // Feedback text (1–5000 chars)
+}
+Response: { success: true, id: string }
+```
+
+Stores site feedback from authenticated educators. The educator's ID and email are captured automatically from the session. Input is validated with Zod.
+
 ### Logout
 
 ```
 POST /api/auth/logout
-Response: redirects to /login
+Response: 303 redirect to /login
 ```
 
-Signs the user out and clears the session cookie.
+Signs the user out and clears the session cookie. Returns a 303 (See Other) redirect to ensure the browser follows with a GET request.
+
+**Note**: The recommended approach is the client-side `SignOutButton` component, which calls `supabase.auth.signOut()` directly and navigates with `router.push('/login')`. This avoids HTTP redirect method issues.
 
 ---
 

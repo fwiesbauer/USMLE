@@ -68,11 +68,12 @@ Every question follows the USMLE one-best-answer format:
 - **2–4 key pearls** — standalone memorable facts
 - **Classification metadata**: organ system, physician task, discipline, COR/LOE, source section
 
-### Two User Roles
+### Three User Roles
 
 | Role | Authentication | What They Can Do |
 |------|---------------|-----------------|
-| **Educator** | Email/password via Supabase Auth | Create quizzes, upload PDFs, generate & edit questions, publish, view feedback |
+| **Educator** | Email/password via Supabase Auth | Create quizzes, upload PDFs, generate & edit questions, publish, view feedback, submit site feedback |
+| **Admin** | Email/password + `role = 'admin'` in DB | Everything an educator can do, plus a read-only admin dashboard to view all educators, quizzes, and questions across the platform |
 | **Learner** | None (anonymous) | Take published quizzes, vote, comment. Progress saved in browser localStorage |
 
 ### AI Provider Support
@@ -107,3 +108,9 @@ The project was built iteratively, feature by feature. Here is the chronological
 14. **Multi-provider AI** — Added OpenAI and Google Gemini as alternative AI providers.
 15. **Bug fixes** — Fixed retry crash, favicon issues, votes/comments server-side errors.
 16. **Favicon** — Added LITFL branded favicons in multiple sizes.
+17. **Feedback widget** — Intercom-style floating feedback button on educator pages. Educators can submit bugs, suggestions, questions, or general feedback. Stored in a `site_feedback` table.
+18. **Editable quiz metadata** — Quiz title, source reference, and DOI are now inline-editable on the review page (click to edit, Enter to save, Escape to cancel).
+19. **Admin dashboard** — Read-only admin panel at `/admin` for platform oversight. Shows all educators with quiz/question counts, and a searchable "All Questions" tab. Drill-down pages for individual educators and their quizzes. Admin access is role-based (`educators.role = 'admin'`), enforced in middleware.
+20. **Admin improvements** — Added share link and total question count columns to admin tables. Fixed admin link visibility by using service client to bypass RLS for role check.
+21. **Share link fix** — Fixed share URLs that broke when using hardcoded absolute URLs. Admin pages now use relative `/q/{token}` paths; publish endpoint constructs URLs from request headers with fallback to `NEXT_PUBLIC_APP_URL`.
+22. **Sign-out fix** — Fixed HTTP 405 error on logout. The form POST to `/api/auth/logout` caused a 307 redirect that preserved the POST method on `/login` (a GET-only page). Refactored to a client-side `SignOutButton` component that calls `supabase.auth.signOut()` directly and navigates with `router.push()`.

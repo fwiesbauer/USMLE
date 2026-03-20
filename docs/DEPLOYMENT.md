@@ -125,4 +125,4 @@ experimental: {
 
 Push to your connected GitHub branch. Vercel auto-deploys on push.
 
-For database schema changes, create a new migration file in `supabase/migrations/` and run it in the Supabase SQL Editor. Migration files should be numbered sequentially (e.g., `00007_your_change.sql`).
+For database schema changes, create a new migration file in `supabase/migrations/` and run it in the Supabase SQL Editor. Migration files should be numbered sequentially (e.g., `00009_your_change.sql`).

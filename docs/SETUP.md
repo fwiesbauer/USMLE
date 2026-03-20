@@ -38,6 +38,8 @@ Run the SQL migrations in order against your Supabase database. Go to the **SQL 
 00004_add_source_reference.sql — Bibliographic citation field
 00005_add_feedback_and_doi.sql — Comments, votes, DOI
 00006_add_ai_provider.sql      — Multi-provider AI support
+00007_add_site_feedback.sql    — Site feedback table for educator feedback widget
+00008_add_educator_role.sql    — Admin role column on educators
 ```
 
 Run them **in numerical order** — each migration builds on the previous one.

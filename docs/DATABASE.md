@@ -38,6 +38,7 @@ Extends Supabase's `auth.users` with app-specific fields.
 | `display_name` | TEXT | nullable | Optional display name |
 | `anthropic_api_key_encrypted` | TEXT | nullable | AES-256-GCM encrypted API key (any provider) |
 | `ai_provider` | TEXT | NOT NULL, DEFAULT 'anthropic' | AI provider: 'anthropic', 'openai', or 'google' |
+| `role` | TEXT | NOT NULL, DEFAULT 'educator', CHECK IN ('educator','admin') | User role for access control |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Account creation time |
 
 **Note**: The column is named `anthropic_api_key_encrypted` for historical reasons, but it stores the encrypted key for whichever provider is selected.
@@ -103,6 +104,20 @@ Extends Supabase's `auth.users` with app-specific fields.
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
 | | | UNIQUE(question_id, visitor_id) | One vote per visitor per question |
 
+### `site_feedback`
+
+General site feedback submitted by educators via the floating feedback widget.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `educator_id` | UUID | FK → educators (SET NULL on delete) | Submitting educator |
+| `page_url` | TEXT | NOT NULL | URL of the page the feedback was submitted from |
+| `feedback_type` | TEXT | NOT NULL, CHECK IN ('bug','suggestion','question','other') | Category of feedback |
+| `message` | TEXT | NOT NULL | Feedback content |
+| `email` | TEXT | nullable | Educator's email (captured at submission time) |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
+
 ## Indexes
 
 | Index | Table | Column(s) | Type |
@@ -116,6 +131,9 @@ Extends Supabase's `auth.users` with app-specific fields.
 | `idx_questions_disciplines` | questions | disciplines | GIN |
 | `idx_question_comments_question_id` | question_comments | question_id | B-tree |
 | `idx_question_votes_question_id` | question_votes | question_id | B-tree |
+| `idx_site_feedback_created_at` | site_feedback | created_at DESC | B-tree |
+| `idx_site_feedback_type` | site_feedback | feedback_type | B-tree |
+| `idx_site_feedback_educator_id` | site_feedback | educator_id | B-tree |
 
 ## Row-Level Security (RLS)
 
@@ -146,6 +164,14 @@ All core tables have RLS enabled. Policies ensure data isolation between educato
 | `questions_insert_own` | INSERT | Same subquery check |
 | `questions_update_own` | UPDATE | Same subquery check |
 | `questions_delete_own` | DELETE | Same subquery check |
+
+### `site_feedback`
+
+| Policy | Operation | Rule |
+|--------|-----------|------|
+| `site_feedback_insert_own` | INSERT | `educator_id = auth.uid()` |
+
+Educators can only insert feedback for themselves. No SELECT/UPDATE/DELETE policies — feedback is write-only from the educator's perspective.
 
 ### `question_comments` and `question_votes`
 
@@ -184,3 +210,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | 4 | `00004_add_source_reference.sql` | Adds `source_reference` column to quizzes |
 | 5 | `00005_add_feedback_and_doi.sql` | Adds `doi` to quizzes, creates `question_comments` and `question_votes` tables |
 | 6 | `00006_add_ai_provider.sql` | Adds `ai_provider` column to educators |
+| 7 | `00007_add_site_feedback.sql` | Creates `site_feedback` table with RLS for educator feedback |
+| 8 | `00008_add_educator_role.sql` | Adds `role` column to educators (`educator` or `admin`) |
