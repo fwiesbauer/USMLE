@@ -33,6 +33,8 @@ export default function ReviewPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
   const [editingSource, setEditingSource] = useState(false);
   const [sourceRefDraft, setSourceRefDraft] = useState('');
   const [editingDoi, setEditingDoi] = useState(false);
@@ -200,7 +202,52 @@ export default function ReviewPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="min-w-0 flex-1">
             <Logo href="/dashboard" />
-            <p className="text-sm text-gray-500">{quiz.title}</p>
+            <div className="flex items-center gap-2 group">
+              {editingTitle ? (
+                <div className="flex items-center gap-2 flex-1 max-w-xl">
+                  <input
+                    autoFocus
+                    value={titleDraft}
+                    onChange={(e) => setTitleDraft(e.target.value)}
+                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm text-gray-700"
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter' && titleDraft.trim()) {
+                        await fetch(`/api/quizzes/${quizId}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ title: titleDraft.trim() }),
+                        });
+                        setQuiz({ ...quiz, title: titleDraft.trim() });
+                        setEditingTitle(false);
+                      } else if (e.key === 'Escape') {
+                        setEditingTitle(false);
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="text-xs text-gray-400 hover:text-gray-600"
+                    onClick={() => setEditingTitle(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500">{quiz.title}</p>
+                  <button
+                    type="button"
+                    className="text-xs text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      setTitleDraft(quiz.title);
+                      setEditingTitle(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
+            </div>
             {quiz.source_reference ? (
               <div className="mt-1 flex items-center gap-2 group">
                 {editingSource ? (

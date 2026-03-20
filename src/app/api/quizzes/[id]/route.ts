@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const UpdateQuizSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
   source_reference: z.string().optional(),
   doi: z.string().optional(),
 });
