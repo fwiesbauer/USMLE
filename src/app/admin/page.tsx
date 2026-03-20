@@ -65,8 +65,6 @@ export default async function AdminPage({ searchParams }: Props) {
     share_token: string | null;
   }> = [];
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.usmle.litfl.com';
-
   if (tab === 'users') {
     const { data: eds } = await service
       .from('educators')
@@ -320,7 +318,7 @@ export default async function AdminPage({ searchParams }: Props) {
                     <td className="px-4 py-3 text-xs">
                       {q.share_token ? (
                         <a
-                          href={`${appUrl}/q/${q.share_token}`}
+                          href={`/q/${q.share_token}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-brand-mid hover:underline"

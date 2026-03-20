@@ -39,8 +39,6 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
 
   if (!educator) notFound();
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.usmle.litfl.com';
-
   // Fetch their quizzes with question data
   const { data: quizzes } = await service
     .from('quizzes')
@@ -194,7 +192,7 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                   <td className="px-4 py-3 text-xs">
                     {q.share_token ? (
                       <a
-                        href={`${appUrl}/q/${q.share_token}`}
+                        href={`/q/${q.share_token}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-brand-mid hover:underline"
