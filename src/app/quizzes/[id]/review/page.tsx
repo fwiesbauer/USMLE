@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { QuestionCard } from '@/components/editor/QuestionCard';
 import { QuestionEditor } from '@/components/editor/QuestionEditor';
 import { Logo } from '@/components/ui/Logo';
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
 import type { Question, Quiz, QuestionComment } from '@/types/quiz';
 
 interface FeedbackStats {
@@ -428,6 +429,7 @@ export default function ReviewPage() {
           </div>
         </div>
       </main>
+      <FeedbackWidget />
     </div>
   );
 }

@@ -1,30 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@/lib/supabase/server';
 import { z } from 'zod';
-
-function getServiceClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(`Missing env: URL=${!!url}, KEY=${!!key}`);
-  }
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-}
 
 const FeedbackSchema = z.object({
   page_url: z.string().max(500),
   feedback_type: z.enum(['bug', 'suggestion', 'question', 'other']),
   message: z.string().min(1).max(5000),
-  email: z.string().email().max(254).optional(),
-  visitor_id: z.string().max(100).optional(),
-  quiz_token: z.string().max(100).optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getServiceClient();
+    const supabase = createServerClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const body = await request.json();
     const parsed = FeedbackSchema.safeParse(body);
@@ -39,12 +33,11 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('site_feedback')
       .insert({
+        educator_id: user.id,
         page_url: parsed.data.page_url,
         feedback_type: parsed.data.feedback_type,
         message: parsed.data.message,
-        email: parsed.data.email || null,
-        visitor_id: parsed.data.visitor_id || null,
-        quiz_token: parsed.data.quiz_token || null,
+        email: user.email || null,
       })
       .select()
       .single();

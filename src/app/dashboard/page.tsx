@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
 
 export default async function DashboardPage() {
   const supabase = createServerClient();
@@ -105,6 +106,7 @@ export default async function DashboardPage() {
           </div>
         )}
       </main>
+      <FeedbackWidget />
     </div>
   );
 }

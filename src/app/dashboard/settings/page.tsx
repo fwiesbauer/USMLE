@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
 
 type AIProvider = 'anthropic' | 'openai' | 'google';
 
@@ -221,6 +222,7 @@ export default function SettingsPage() {
           </div>
         </Card>
       </main>
+      <FeedbackWidget />
     </div>
   );
 }

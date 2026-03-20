@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { getVisitorId } from '@/lib/visitor';
 
 const FEEDBACK_TYPES = [
   { value: 'bug', label: 'Bug Report', icon: '🐛' },
@@ -12,15 +11,10 @@ const FEEDBACK_TYPES = [
 
 type FeedbackType = (typeof FEEDBACK_TYPES)[number]['value'];
 
-interface FeedbackWidgetProps {
-  quizToken?: string;
-}
-
-export function FeedbackWidget({ quizToken }: FeedbackWidgetProps) {
+export function FeedbackWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>('suggestion');
   const [message, setMessage] = useState('');
-  const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
@@ -32,16 +26,13 @@ export function FeedbackWidget({ quizToken }: FeedbackWidgetProps) {
     setError('');
 
     try {
-      const res = await fetch('/api/public/feedback', {
+      const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           page_url: window.location.href,
           feedback_type: feedbackType,
           message: message.trim(),
-          email: email.trim() || undefined,
-          visitor_id: getVisitorId(),
-          quiz_token: quizToken,
         }),
       });
 
@@ -51,7 +42,6 @@ export function FeedbackWidget({ quizToken }: FeedbackWidgetProps) {
 
       setSubmitted(true);
       setMessage('');
-      setEmail('');
 
       setTimeout(() => {
         setSubmitted(false);
@@ -91,7 +81,7 @@ export function FeedbackWidget({ quizToken }: FeedbackWidgetProps) {
 
       {/* Feedback panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-5 z-50 w-80 rounded-xl bg-white shadow-2xl border border-gray-200 overflow-hidden animate-in">
+        <div className="fixed bottom-20 right-5 z-50 w-80 rounded-xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
           {/* Header */}
           <div className="bg-brand-dark px-4 py-3">
             <h3 className="text-white font-semibold text-sm">Send us feedback</h3>
@@ -133,15 +123,6 @@ export function FeedbackWidget({ quizToken }: FeedbackWidgetProps) {
                 placeholder="Tell us what's on your mind..."
                 rows={4}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-mid focus:outline-none focus:ring-1 focus:ring-brand-mid resize-none"
-              />
-
-              {/* Email (optional) */}
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email (optional — for follow-up)"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:border-brand-mid focus:outline-none focus:ring-1 focus:ring-brand-mid"
               />
 
               {error && (

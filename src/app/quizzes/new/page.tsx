@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
 
 export default function NewQuizPage() {
   const router = useRouter();
@@ -281,6 +282,7 @@ export default function NewQuizPage() {
           </Card>
         )}
       </main>
+      <FeedbackWidget />
     </div>
   );
 }
