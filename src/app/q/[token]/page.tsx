@@ -15,6 +15,7 @@ import {
   getIncorrectQuestionIds,
   calculateScore,
 } from '@/lib/progress';
+import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
 import type {
   PublicQuestion,
   RevealResponse,
@@ -148,10 +149,13 @@ export default function LearnerQuizPage() {
     handleStartFresh();
   }, [handleStartFresh]);
 
+  const feedbackWidget = <FeedbackWidget quizToken={token} />;
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-gray-500">Loading quiz...</p>
+        {feedbackWidget}
       </div>
     );
   }
@@ -160,6 +164,7 @@ export default function LearnerQuizPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <p className="text-red-600">{error}</p>
+        {feedbackWidget}
       </div>
     );
   }
@@ -169,31 +174,37 @@ export default function LearnerQuizPage() {
 
   if (screen === 'welcome') {
     return (
-      <QuizWelcome
-        title={quizTitle}
-        sourceFilename={sourceFilename}
-        sourceReference={sourceReference}
-        questionCount={questions.length}
-        hasExistingProgress={hasExistingProgress}
-        previousScore={previousScore}
-        previousDate={progress?.completed_at}
-        onStart={handleStart}
-        onContinue={handleContinue}
-        onStartFresh={handleStartFresh}
-      />
+      <>
+        <QuizWelcome
+          title={quizTitle}
+          sourceFilename={sourceFilename}
+          sourceReference={sourceReference}
+          questionCount={questions.length}
+          hasExistingProgress={hasExistingProgress}
+          previousScore={previousScore}
+          previousDate={progress?.completed_at}
+          onStart={handleStart}
+          onContinue={handleContinue}
+          onStartFresh={handleStartFresh}
+        />
+        {feedbackWidget}
+      </>
     );
   }
 
   if (screen === 'quiz') {
     return (
-      <QuizQuestion
-        key={questions[currentIndex].id}
-        question={questions[currentIndex]}
-        currentIndex={currentIndex}
-        totalQuestions={questions.length}
-        onAnswer={handleAnswer}
-        onNext={handleNext}
-      />
+      <>
+        <QuizQuestion
+          key={questions[currentIndex].id}
+          question={questions[currentIndex]}
+          currentIndex={currentIndex}
+          totalQuestions={questions.length}
+          onAnswer={handleAnswer}
+          onNext={handleNext}
+        />
+        {feedbackWidget}
+      </>
     );
   }
 
@@ -204,13 +215,16 @@ export default function LearnerQuizPage() {
     );
 
     return (
-      <RetrySection
-        incorrectQuestions={incorrectQuestions}
-        allQuestions={questions}
-        onAnswer={handleAnswer}
-        onRetakeFull={handleRetakeFull}
-        onBackToResults={() => setScreen('results')}
-      />
+      <>
+        <RetrySection
+          incorrectQuestions={incorrectQuestions}
+          allQuestions={questions}
+          onAnswer={handleAnswer}
+          onRetakeFull={handleRetakeFull}
+          onBackToResults={() => setScreen('results')}
+        />
+        {feedbackWidget}
+      </>
     );
   }
 
@@ -219,14 +233,17 @@ export default function LearnerQuizPage() {
     const incorrectIds = getIncorrectQuestionIds(progress);
 
     return (
-      <QuizResults
-        score={score}
-        attempts={progress.attempts}
-        questions={questions}
-        hasIncorrect={incorrectIds.length > 0}
-        onRetryIncorrect={handleRetryIncorrect}
-        onRetakeFull={handleRetakeFull}
-      />
+      <>
+        <QuizResults
+          score={score}
+          attempts={progress.attempts}
+          questions={questions}
+          hasIncorrect={incorrectIds.length > 0}
+          onRetryIncorrect={handleRetryIncorrect}
+          onRetakeFull={handleRetakeFull}
+        />
+        {feedbackWidget}
+      </>
     );
   }
 
