@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
 import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
@@ -15,13 +15,15 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
+  const service = createServiceClient();
+
   const [{ data: quizzes }, { data: educator }] = await Promise.all([
     supabase
       .from('quizzes')
       .select('*')
       .eq('educator_id', user.id)
       .order('created_at', { ascending: false }),
-    supabase
+    service
       .from('educators')
       .select('role')
       .eq('id', user.id)
