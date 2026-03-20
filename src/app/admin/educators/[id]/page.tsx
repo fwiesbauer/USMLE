@@ -39,10 +39,12 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
 
   if (!educator) notFound();
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.usmle.litfl.com';
+
   // Fetch their quizzes with question data
   const { data: quizzes } = await service
     .from('quizzes')
-    .select('id, title, source_reference, source_filename, status, created_at')
+    .select('id, title, source_reference, source_filename, status, share_token, created_at')
     .eq('educator_id', params.id)
     .order('created_at', { ascending: false });
 
@@ -152,6 +154,7 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                 <th className="px-4 py-3">Organ Systems</th>
                 <th className="px-4 py-3">Tasks</th>
                 <th className="px-4 py-3">Disciplines</th>
+                <th className="px-4 py-3">Share Link</th>
                 <th className="px-4 py-3">
                   <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
                 </th>
@@ -188,6 +191,20 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                   <td className="px-4 py-3">
                     <CategoryBadges items={q.disciplines} type="discipline" />
                   </td>
+                  <td className="px-4 py-3 text-xs">
+                    {q.share_token ? (
+                      <a
+                        href={`${appUrl}/q/${q.share_token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-mid hover:underline"
+                      >
+                        /q/{q.share_token.slice(0, 8)}...
+                      </a>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                     {new Date(q.created_at).toLocaleDateString()}
                   </td>
@@ -195,7 +212,7 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
               ))}
               {quizRows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
                     No question sets yet.
                   </td>
                 </tr>

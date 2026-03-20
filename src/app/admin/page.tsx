@@ -62,7 +62,10 @@ export default async function AdminPage({ searchParams }: Props) {
     educator_id: string;
     source_reference: string | null;
     source_filename: string | null;
+    share_token: string | null;
   }> = [];
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.usmle.litfl.com';
 
   if (tab === 'users') {
     const { data: eds } = await service
@@ -123,10 +126,10 @@ export default async function AdminPage({ searchParams }: Props) {
       const quizIds = Array.from(new Set(questions.map((q) => q.quiz_id)));
       const { data: quizzes } = await service
         .from('quizzes')
-        .select('id, educator_id, source_reference, source_filename')
+        .select('id, educator_id, source_reference, source_filename, share_token')
         .in('id', quizIds);
 
-      const quizMap: Record<string, { educator_id: string; source_reference: string | null; source_filename: string | null }> = {};
+      const quizMap: Record<string, { educator_id: string; source_reference: string | null; source_filename: string | null; share_token: string | null }> = {};
       for (const q of quizzes || []) {
         quizMap[q.id] = q;
       }
@@ -143,7 +146,7 @@ export default async function AdminPage({ searchParams }: Props) {
       }
 
       allQuestions = questions.map((q) => {
-        const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null };
+        const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null, share_token: null };
         const ed = edMap[quiz.educator_id] || { email: '—', display_name: null };
         return {
           id: q.id,
@@ -157,6 +160,7 @@ export default async function AdminPage({ searchParams }: Props) {
           educator_id: quiz.educator_id,
           source_reference: quiz.source_reference,
           source_filename: quiz.source_filename,
+          share_token: quiz.share_token,
         };
       });
 
@@ -281,6 +285,7 @@ export default async function AdminPage({ searchParams }: Props) {
                     <Link href={sortUrl('educator')}>Creator{sortIndicator('educator')}</Link>
                   </th>
                   <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Share Link</th>
                   <th className="px-4 py-3">
                     <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
                   </th>
@@ -312,6 +317,20 @@ export default async function AdminPage({ searchParams }: Props) {
                     <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
                       {q.source_reference || q.source_filename || '—'}
                     </td>
+                    <td className="px-4 py-3 text-xs">
+                      {q.share_token ? (
+                        <a
+                          href={`${appUrl}/q/${q.share_token}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-mid hover:underline"
+                        >
+                          /q/{q.share_token.slice(0, 8)}...
+                        </a>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                       {new Date(q.created_at).toLocaleDateString()}
                     </td>
@@ -319,7 +338,7 @@ export default async function AdminPage({ searchParams }: Props) {
                 ))}
                 {allQuestions.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                       No questions generated yet.
                     </td>
                   </tr>
