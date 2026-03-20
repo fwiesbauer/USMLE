@@ -33,6 +33,12 @@ export default async function AdminPage({ searchParams }: Props) {
   const sort = searchParams.sort || (tab === 'users' ? 'created_at' : 'created_at');
   const dir = searchParams.dir === 'asc' ? 'asc' : 'desc';
 
+  // Fetch counts for both tabs (lightweight queries)
+  const [{ count: totalUsers }, { count: totalQuestions }] = await Promise.all([
+    service.from('educators').select('id', { count: 'exact', head: true }),
+    service.from('questions').select('id', { count: 'exact', head: true }),
+  ]);
+
   // ---- Users tab data ----
   let educators: Array<{
     id: string;
@@ -192,7 +198,7 @@ export default async function AdminPage({ searchParams }: Props) {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            Users ({educators.length || '...'})
+            Users ({totalUsers ?? '...'})
           </Link>
           <Link
             href="/admin?tab=questions"
@@ -202,7 +208,7 @@ export default async function AdminPage({ searchParams }: Props) {
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            All Questions
+            All Questions ({totalQuestions ?? '...'})
           </Link>
         </div>
 
