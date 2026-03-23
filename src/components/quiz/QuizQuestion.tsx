@@ -301,10 +301,10 @@ export function QuizQuestion({
                       rel="noopener noreferrer"
                       className="text-brand-mid hover:text-brand-dark underline"
                     >
-                      {reveal.source_reference}
+                      {reveal.source_reference.replace(/^\d+\.\s*/, '')}
                     </a>
                   ) : (
-                    <span>{reveal.source_reference}</span>
+                    <span>{reveal.source_reference.replace(/^\d+\.\s*/, '')}</span>
                   )}
                 </p>
               )}

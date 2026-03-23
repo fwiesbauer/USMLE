@@ -169,7 +169,7 @@ export default function ReviewPage() {
   const startEditingHeader = () => {
     if (!quiz) return;
     setTitleDraft(quiz.title);
-    setSourceRefDraft(quiz.source_reference || '');
+    setSourceRefDraft((quiz.source_reference || '').replace(/^\d+\.\s*/, ''));
     setDoiDraft(quiz.doi || '');
     setEditingHeader(true);
   };
@@ -315,7 +315,7 @@ export default function ReviewPage() {
                     <div className="mt-1 space-y-0.5">
                       {quiz.source_reference && (
                         <p className="text-xs text-gray-400 italic truncate max-w-xl">
-                          {quiz.source_reference}
+                          {quiz.source_reference.replace(/^\d+\.\s*/, '')}
                         </p>
                       )}
                       {quiz.doi ? (

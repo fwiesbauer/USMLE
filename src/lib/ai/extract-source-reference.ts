@@ -67,16 +67,16 @@ Extract these fields:
 - document_type: "journal_article" if this looks like a published journal article (has journal name, volume/issue, page range, or publisher branding), or "manuscript" if it looks like an unpublished draft, internal document, or cannot be determined.
 - suggested_filename: A stable, human-readable filename using the pattern "FirstAuthorFamily Year - ShortTitle.pdf" where ShortTitle is the first few important words of the title, cleaned of punctuation. If you cannot reliably identify an author or year, use a short version of the title and any visible internal ID.
 
-Also produce a formatted NEJM-style reference line:
-- If a scientific paper/guideline: "1. Author(s). Title. Journal Abbreviation. Year;Volume(Issue):Pages. doi:XX"
+Also produce a formatted NEJM-style reference line (without a leading number):
+- If a scientific paper/guideline: "Author(s). Title. Journal Abbreviation. Year;Volume(Issue):Pages. doi:XX"
   - Authors: Full list if ≤6 (Surname Initials); first 3 + "et al" if >6. No periods between initials.
   - Journal: Use PubMed/NLM abbreviation conventions.
   - Include DOI if present.
-- If NOT a scientific paper: "1. Author(s). Title. Publisher/Source; Year." or just "1. Title."
+- If NOT a scientific paper: "Author(s). Title. Publisher/Source; Year." or just "Title."
 
 Return ONLY a JSON object with this exact structure (no markdown fences, no explanation):
 {
-  "reference": "1. ...",
+  "reference": "...",
   "metadata": {
     "article_title": "..." or null,
     "authors": [{"family": "...", "given": "..."}] or [],
@@ -117,7 +117,8 @@ ${excerpt}`;
   } catch {
     // Fallback: treat the whole response as a reference string (backward compat)
     let ref = responseText.trim();
-    if (!ref.startsWith('1.')) ref = '1. ' + ref;
+    // Strip leading numbering (e.g. "1. ") if present
+    ref = ref.replace(/^\d+\.\s*/, '');
     const fallbackDoi = regexDoi || extractDoiFromText(ref);
     return {
       reference: ref,
@@ -128,9 +129,8 @@ ${excerpt}`;
 
   // Build the formatted reference
   let reference = parsed.reference?.trim() || '';
-  if (reference && !reference.startsWith('1.')) {
-    reference = '1. ' + reference;
-  }
+  // Strip leading numbering (e.g. "1. ") if present
+  reference = reference.replace(/^\d+\.\s*/, '');
 
   // Build structured metadata with defaults
   const raw = parsed.metadata || {};
