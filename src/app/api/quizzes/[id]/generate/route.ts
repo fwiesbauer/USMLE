@@ -147,8 +147,24 @@ export async function POST(
       .update({ status: 'error' })
       .eq('id', params.id);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Generation failed. Please try again.' },
+      { error: extractFriendlyError(err) },
       { status: 500 }
     );
   }
+}
+
+/** Extract a user-friendly error message from API SDK errors.
+ *  SDK errors often have messages like: '400 {"type":"error","error":{"type":"...","message":"..."}}'
+ */
+function extractFriendlyError(err: unknown): string {
+  if (!(err instanceof Error)) return 'Generation failed. Please try again.';
+
+  // Try to extract the nested "message" from JSON embedded in the error string
+  const jsonMatch = err.message.match(/\{[\s\S]*"message"\s*:\s*"([^"]+)"/);
+  if (jsonMatch?.[1]) return jsonMatch[1];
+
+  // If the message is very long (raw JSON dump), use a generic fallback
+  if (err.message.length > 200) return 'Generation failed. Please try again.';
+
+  return err.message;
 }
