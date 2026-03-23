@@ -85,8 +85,13 @@ export async function POST(
       // Non-fatal — citation extraction is best-effort
     }
 
-    // Upload PDF to Supabase Storage
-    const storagePath = `quizzes/${params.id}/${file.name}`;
+    // Use the AI-suggested filename when available; fall back to the original upload name
+    const finalFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
+      ? suggestedFilename
+      : file.name;
+
+    // Upload PDF to Supabase Storage under the final filename
+    const storagePath = `quizzes/${params.id}/${finalFilename}`;
     const { error: storageError } = await supabase.storage
       .from('pdfs')
       .upload(storagePath, buffer, {
@@ -99,13 +104,17 @@ export async function POST(
       // Non-fatal — continue without storage
     }
 
-    // Update quiz with extracted text
+    // Update quiz with extracted text and all metadata in a single write
     const { error: updateError } = await supabase
       .from('quizzes')
       .update({
         source_text: extraction.text,
-        source_filename: file.name,
+        source_filename: finalFilename,
         pdf_storage_path: storagePath,
+        ...(sourceReference ? { source_reference: sourceReference } : {}),
+        ...(doi ? { doi } : {}),
+        ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+        ...(suggestedFilename ? { suggested_filename: suggestedFilename } : {}),
       })
       .eq('id', params.id);
 
@@ -115,23 +124,6 @@ export async function POST(
         { error: 'Failed to save extracted text.' },
         { status: 500 }
       );
-    }
-
-    // Save source reference, DOI, and structured metadata — non-fatal if columns don't exist yet
-    if (sourceReference || doi || sourceMetadata) {
-      const updateFields: Record<string, unknown> = {};
-      if (sourceReference) updateFields.source_reference = sourceReference;
-      if (doi) updateFields.doi = doi;
-      if (sourceMetadata) updateFields.source_metadata = sourceMetadata;
-      if (suggestedFilename) updateFields.suggested_filename = suggestedFilename;
-
-      await supabase
-        .from('quizzes')
-        .update(updateFields)
-        .eq('id', params.id)
-        .then(({ error }) => {
-          if (error) console.error('Metadata save error (non-fatal):', error);
-        });
     }
 
     return NextResponse.json({
