@@ -91,6 +91,8 @@ export async function POST(
     ]);
     const sourceReference = refResult?.reference || null;
     const doi = refResult?.doi || null;
+    const sourceMetadata = refResult?.metadata || null;
+    const suggestedFilename = refResult?.metadata?.suggested_filename || null;
 
     // Bulk insert questions
     const questionRows = questions.map((q) => ({
@@ -132,6 +134,8 @@ export async function POST(
         status: 'review',
         ...(sourceReference ? { source_reference: sourceReference } : {}),
         ...(doi ? { doi } : {}),
+        ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+        ...(suggestedFilename ? { suggested_filename: suggestedFilename } : {}),
       })
       .eq('id', params.id);
 

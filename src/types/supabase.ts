@@ -48,6 +48,9 @@ export interface Database {
           source_filename: string | null;
           source_text: string | null;
           source_reference: string | null;
+          doi: string | null;
+          source_metadata: Json | null;
+          suggested_filename: string | null;
           pdf_storage_path: string | null;
           status: string;
           share_token: string | null;
@@ -62,6 +65,9 @@ export interface Database {
           source_filename?: string | null;
           source_text?: string | null;
           source_reference?: string | null;
+          doi?: string | null;
+          source_metadata?: Json | null;
+          suggested_filename?: string | null;
           pdf_storage_path?: string | null;
           status?: string;
           share_token?: string | null;
@@ -76,6 +82,9 @@ export interface Database {
           source_filename?: string | null;
           source_text?: string | null;
           source_reference?: string | null;
+          doi?: string | null;
+          source_metadata?: Json | null;
+          suggested_filename?: string | null;
           pdf_storage_path?: string | null;
           status?: string;
           share_token?: string | null;

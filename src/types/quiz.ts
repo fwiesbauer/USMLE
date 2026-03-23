@@ -21,6 +21,26 @@ export interface Question {
   disciplines: string[];
 }
 
+/** Structured bibliographic metadata extracted from PDF */
+export interface SourceMetadata {
+  article_title: string | null;
+  authors: { family: string; given: string }[];
+  journal_title: string | null;
+  journal_abbreviation: string | null;
+  year: number | null;
+  publication_date: string | null;
+  volume: string | null;
+  issue: string | null;
+  pages: string | null;
+  doi: string | null;
+  pmid: string | null;
+  pmcid: string | null;
+  issn: string | null;
+  keywords: string[];
+  document_type: 'journal_article' | 'manuscript';
+  suggested_filename: string;
+}
+
 export interface Quiz {
   id: string;
   educator_id: string;
@@ -28,6 +48,8 @@ export interface Quiz {
   source_filename: string;
   source_reference?: string;
   doi?: string;
+  source_metadata?: SourceMetadata | null;
+  suggested_filename?: string | null;
   status: 'draft' | 'generating' | 'review' | 'published';
   share_token?: string;
   question_count_requested: number;

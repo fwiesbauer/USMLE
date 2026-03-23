@@ -1,6 +1,6 @@
 import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { extractTextFromPDF } from '@/lib/pdf/extract-text';
-import { extractSourceReference } from '@/lib/ai/extract-source-reference';
+import { extractSourceReference, type SourceMetadata } from '@/lib/ai/extract-source-reference';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -59,22 +59,27 @@ export async function POST(
     // Extract text
     const extraction = await extractTextFromPDF(buffer);
 
-    // Try to extract a formatted citation using Haiku (non-blocking)
+    // Try to extract structured bibliographic metadata using Haiku (non-blocking)
     let sourceReference: string | null = null;
     let doi: string | null = null;
+    let sourceMetadata: SourceMetadata | null = null;
+    let suggestedFilename: string | null = null;
     try {
       const serviceClient = createServiceClient();
       const { data: educator } = await serviceClient
         .from('educators')
-        .select('anthropic_api_key_encrypted')
+        .select('anthropic_api_key_encrypted, ai_provider')
         .eq('id', user.id)
         .single();
 
       if (educator?.anthropic_api_key_encrypted) {
         const apiKey = decrypt(educator.anthropic_api_key_encrypted);
-        const result = await extractSourceReference(extraction.text, apiKey);
+        const provider = (educator.ai_provider || 'anthropic') as import('@/lib/ai/providers').AIProvider;
+        const result = await extractSourceReference(extraction.text, apiKey, provider);
         sourceReference = result.reference;
         doi = result.doi || null;
+        sourceMetadata = result.metadata;
+        suggestedFilename = result.metadata.suggested_filename || null;
       }
     } catch {
       // Non-fatal — citation extraction is best-effort
@@ -112,18 +117,20 @@ export async function POST(
       );
     }
 
-    // Save source reference and DOI separately — non-fatal if columns don't exist yet
-    if (sourceReference || doi) {
-      const updateFields: Record<string, string> = {};
+    // Save source reference, DOI, and structured metadata — non-fatal if columns don't exist yet
+    if (sourceReference || doi || sourceMetadata) {
+      const updateFields: Record<string, unknown> = {};
       if (sourceReference) updateFields.source_reference = sourceReference;
       if (doi) updateFields.doi = doi;
+      if (sourceMetadata) updateFields.source_metadata = sourceMetadata;
+      if (suggestedFilename) updateFields.suggested_filename = suggestedFilename;
 
       await supabase
         .from('quizzes')
         .update(updateFields)
         .eq('id', params.id)
         .then(({ error }) => {
-          if (error) console.error('Source reference/DOI save error (non-fatal):', error);
+          if (error) console.error('Metadata save error (non-fatal):', error);
         });
     }
 
@@ -131,6 +138,8 @@ export async function POST(
       pdf_storage_path: storagePath,
       source_text_preview: extraction.preview,
       source_reference: sourceReference,
+      source_metadata: sourceMetadata,
+      suggested_filename: suggestedFilename,
       doi,
       word_count: extraction.wordCount,
       page_count: extraction.pageCount,

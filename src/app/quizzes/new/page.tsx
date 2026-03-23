@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Logo } from '@/components/ui/Logo';
 import { FeedbackWidget } from '@/components/ui/FeedbackWidget';
+import type { SourceMetadata } from '@/types/quiz';
 
 export default function NewQuizPage() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function NewQuizPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState('');
   const [sourceReference, setSourceReference] = useState<string | null>(null);
+  const [sourceMetadata, setSourceMetadata] = useState<SourceMetadata | null>(null);
   const [wordCount, setWordCount] = useState<number | null>(null);
   const [warning, setWarning] = useState('');
   const [quizId, setQuizId] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function NewQuizPage() {
       const uploadData = await uploadRes.json();
       setPreview(uploadData.source_text_preview);
       setSourceReference(uploadData.source_reference || null);
+      setSourceMetadata(uploadData.source_metadata || null);
       setWordCount(uploadData.word_count);
       if (uploadData.warning) setWarning(uploadData.warning);
       setStep('confirm');
@@ -247,7 +250,59 @@ export default function NewQuizPage() {
                   {warning}
                 </p>
               )}
-              {sourceReference ? (
+
+              {/* Structured bibliographic metadata */}
+              {sourceMetadata?.article_title ? (
+                <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">
+                    Source Details
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 leading-snug">
+                    {sourceMetadata.article_title}
+                  </p>
+                  {sourceMetadata.authors.length > 0 && (
+                    <p className="text-sm text-gray-600">
+                      {sourceMetadata.authors
+                        .map((a) => `${a.family} ${a.given}`)
+                        .join(', ')}
+                      {sourceMetadata.year ? ` (${sourceMetadata.year})` : ''}
+                    </p>
+                  )}
+                  {(sourceMetadata.journal_title || sourceMetadata.journal_abbreviation) && (
+                    <p className="text-sm text-gray-500 italic">
+                      {sourceMetadata.journal_abbreviation || sourceMetadata.journal_title}
+                      {sourceMetadata.volume && ` ${sourceMetadata.volume}`}
+                      {sourceMetadata.issue && `(${sourceMetadata.issue})`}
+                      {sourceMetadata.pages && `:${sourceMetadata.pages}`}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                    {sourceMetadata.doi && <span>DOI: {sourceMetadata.doi}</span>}
+                    {sourceMetadata.pmid && <span>PMID: {sourceMetadata.pmid}</span>}
+                    {sourceMetadata.pmcid && <span>PMCID: {sourceMetadata.pmcid}</span>}
+                    <span className="capitalize">
+                      {sourceMetadata.document_type === 'journal_article' ? 'Journal Article' : 'Manuscript'}
+                    </span>
+                  </div>
+                  {sourceMetadata.keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {sourceMetadata.keywords.map((kw) => (
+                        <span
+                          key={kw}
+                          className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                        >
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {sourceMetadata.suggested_filename && sourceMetadata.suggested_filename !== 'document.pdf' && (
+                    <p className="text-xs text-gray-400">
+                      Suggested filename: <span className="font-mono">{sourceMetadata.suggested_filename}</span>
+                    </p>
+                  )}
+                </div>
+              ) : sourceReference ? (
                 <div className="rounded-lg border border-gray-200 bg-white p-4">
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
                     Source
