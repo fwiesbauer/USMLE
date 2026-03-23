@@ -62,6 +62,8 @@ export default async function AdminPage({ searchParams }: Props) {
     educator_id: string;
     source_reference: string | null;
     source_filename: string | null;
+    source_metadata: Record<string, unknown> | null;
+    doi: string | null;
     share_token: string | null;
   }> = [];
 
@@ -124,10 +126,10 @@ export default async function AdminPage({ searchParams }: Props) {
       const quizIds = Array.from(new Set(questions.map((q) => q.quiz_id)));
       const { data: quizzes } = await service
         .from('quizzes')
-        .select('id, educator_id, source_reference, source_filename, share_token')
+        .select('id, educator_id, source_reference, source_filename, source_metadata, doi, share_token')
         .in('id', quizIds);
 
-      const quizMap: Record<string, { educator_id: string; source_reference: string | null; source_filename: string | null; share_token: string | null }> = {};
+      const quizMap: Record<string, { educator_id: string; source_reference: string | null; source_filename: string | null; source_metadata: Record<string, unknown> | null; doi: string | null; share_token: string | null }> = {};
       for (const q of quizzes || []) {
         quizMap[q.id] = q;
       }
@@ -144,7 +146,7 @@ export default async function AdminPage({ searchParams }: Props) {
       }
 
       allQuestions = questions.map((q) => {
-        const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null, share_token: null };
+        const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null, source_metadata: null, doi: null, share_token: null };
         const ed = edMap[quiz.educator_id] || { email: '—', display_name: null };
         return {
           id: q.id,
@@ -158,6 +160,8 @@ export default async function AdminPage({ searchParams }: Props) {
           educator_id: quiz.educator_id,
           source_reference: quiz.source_reference,
           source_filename: quiz.source_filename,
+          source_metadata: quiz.source_metadata as Record<string, unknown> | null,
+          doi: quiz.doi,
           share_token: quiz.share_token,
         };
       });
@@ -282,7 +286,12 @@ export default async function AdminPage({ searchParams }: Props) {
                   <th className="px-4 py-3">
                     <Link href={sortUrl('educator')}>Creator{sortIndicator('educator')}</Link>
                   </th>
-                  <th className="px-4 py-3">Source</th>
+                  <th className="px-4 py-3">Article / Source</th>
+                  <th className="px-4 py-3">Authors</th>
+                  <th className="px-4 py-3">Journal</th>
+                  <th className="px-4 py-3">Year</th>
+                  <th className="px-4 py-3">DOI</th>
+                  <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Share Link</th>
                   <th className="px-4 py-3">
                     <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
@@ -290,7 +299,10 @@ export default async function AdminPage({ searchParams }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {allQuestions.map((q) => (
+                {allQuestions.map((q) => {
+                  const meta = q.source_metadata as { article_title?: string; authors?: { family: string; given: string }[]; journal_title?: string; journal_abbreviation?: string; year?: number; doi?: string; document_type?: string } | null;
+                  const doi = meta?.doi || q.doi;
+                  return (
                   <tr key={q.id} className="hover:bg-gray-50 align-top">
                     <td className="px-4 py-3 text-gray-800 max-w-xs">
                       <p className="line-clamp-2">{q.question_text}</p>
@@ -312,8 +324,27 @@ export default async function AdminPage({ searchParams }: Props) {
                         {q.educator_name || q.educator_email}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
-                      {q.source_reference || q.source_filename || '—'}
+                    <td className="px-4 py-3 text-xs text-gray-600 max-w-[250px]">
+                      <p className="line-clamp-2">{meta?.article_title || q.source_reference || q.source_filename || '—'}</p>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {meta?.authors?.length
+                        ? meta.authors.map((a) => a.family).join(', ')
+                        : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[140px] truncate">
+                      {meta?.journal_abbreviation || meta?.journal_title || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {meta?.year || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[150px] truncate">
+                      {doi ? (
+                        <a href={`https://doi.org/${doi}`} target="_blank" rel="noopener noreferrer" className="text-brand-mid hover:underline">{doi}</a>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                      {meta?.document_type === 'journal_article' ? 'Article' : meta?.document_type === 'manuscript' ? 'Manuscript' : '—'}
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {q.share_token ? (
@@ -333,10 +364,11 @@ export default async function AdminPage({ searchParams }: Props) {
                       {new Date(q.created_at).toLocaleDateString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {allQuestions.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={13} className="px-4 py-8 text-center text-gray-400">
                       No questions generated yet.
                     </td>
                   </tr>

@@ -39,10 +39,10 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
 
   if (!educator) notFound();
 
-  // Fetch their quizzes with question data
+  // Fetch their quizzes with question data and bibliographic metadata
   const { data: quizzes } = await service
     .from('quizzes')
-    .select('id, title, source_reference, source_filename, status, share_token, created_at')
+    .select('id, title, source_reference, source_filename, source_metadata, doi, status, share_token, created_at')
     .eq('educator_id', params.id)
     .order('created_at', { ascending: false });
 
@@ -142,7 +142,13 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                 <th className="px-4 py-3">
                   <Link href={sortUrl('title')}>Title{sortIndicator('title')}</Link>
                 </th>
-                <th className="px-4 py-3">Source</th>
+                <th className="px-4 py-3">Article / Source</th>
+                <th className="px-4 py-3">Authors</th>
+                <th className="px-4 py-3">Journal</th>
+                <th className="px-4 py-3">Year</th>
+                <th className="px-4 py-3">DOI</th>
+                <th className="px-4 py-3">Type</th>
+                <th className="px-4 py-3">Keywords</th>
                 <th className="px-4 py-3">
                   <Link href={sortUrl('status')}>Status{sortIndicator('status')}</Link>
                 </th>
@@ -159,7 +165,10 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {quizRows.map((q) => (
+              {quizRows.map((q) => {
+                const meta = q.source_metadata as { article_title?: string; authors?: { family: string; given: string }[]; journal_title?: string; journal_abbreviation?: string; year?: number; doi?: string; document_type?: string; keywords?: string[]; pmid?: string; pmcid?: string } | null;
+                const doi = meta?.doi || q.doi;
+                return (
                 <tr key={q.id} className="hover:bg-gray-50 align-top">
                   <td className="px-4 py-3">
                     <Link
@@ -169,8 +178,36 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                       {q.title}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
-                    {q.source_reference || q.source_filename || '—'}
+                  <td className="px-4 py-3 text-xs text-gray-600 max-w-[250px]">
+                    <p className="line-clamp-2">{meta?.article_title || q.source_reference || q.source_filename || '—'}</p>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                    {meta?.authors?.length
+                      ? meta.authors.map((a) => a.family).join(', ')
+                      : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[140px] truncate">
+                    {meta?.journal_abbreviation || meta?.journal_title || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                    {meta?.year || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 max-w-[150px] truncate">
+                    {doi ? (
+                      <a href={`https://doi.org/${doi}`} target="_blank" rel="noopener noreferrer" className="text-brand-mid hover:underline">{doi}</a>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                    {meta?.document_type === 'journal_article' ? 'Article' : meta?.document_type === 'manuscript' ? 'Manuscript' : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    {meta?.keywords?.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {meta.keywords.slice(0, 3).map((kw) => (
+                          <span key={kw} className="inline-block rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">{kw}</span>
+                        ))}
+                      </div>
+                    ) : <span className="text-xs text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[q.status] || ''}`}>
@@ -207,10 +244,11 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                     {new Date(q.created_at).toLocaleDateString()}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {quizRows.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={15} className="px-4 py-8 text-center text-gray-400">
                     No question sets yet.
                   </td>
                 </tr>
