@@ -104,7 +104,7 @@ export async function POST(
       // Non-fatal — continue without storage
     }
 
-    // Update quiz with extracted text and all metadata in a single write
+    // Core save — must succeed (uses only original columns)
     const { error: updateError } = await supabase
       .from('quizzes')
       .update({
@@ -113,8 +113,6 @@ export async function POST(
         pdf_storage_path: storagePath,
         ...(sourceReference ? { source_reference: sourceReference } : {}),
         ...(doi ? { doi } : {}),
-        ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
-        ...(suggestedFilename ? { suggested_filename: suggestedFilename } : {}),
       })
       .eq('id', params.id);
 
@@ -124,6 +122,20 @@ export async function POST(
         { error: 'Failed to save extracted text.' },
         { status: 500 }
       );
+    }
+
+    // Best-effort save of new metadata columns (non-fatal if migration hasn't run yet)
+    if (sourceMetadata || suggestedFilename) {
+      await supabase
+        .from('quizzes')
+        .update({
+          ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+          ...(suggestedFilename ? { suggested_filename: suggestedFilename } : {}),
+        })
+        .eq('id', params.id)
+        .then(({ error }) => {
+          if (error) console.error('Metadata columns save (non-fatal):', error);
+        });
     }
 
     return NextResponse.json({

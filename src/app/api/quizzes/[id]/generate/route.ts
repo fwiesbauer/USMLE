@@ -128,16 +128,29 @@ export async function POST(
       );
     }
 
+    // Core status update (uses only original columns)
     await serviceClient
       .from('quizzes')
       .update({
         status: 'review',
         ...(sourceReference ? { source_reference: sourceReference } : {}),
         ...(doi ? { doi } : {}),
-        ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
-        ...(suggestedFilename ? { suggested_filename: suggestedFilename } : {}),
       })
       .eq('id', params.id);
+
+    // Best-effort save of new metadata columns (non-fatal if migration hasn't run yet)
+    if (sourceMetadata || suggestedFilename) {
+      await serviceClient
+        .from('quizzes')
+        .update({
+          ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
+          ...(suggestedFilename ? { suggested_filename: suggestedFilename } : {}),
+        })
+        .eq('id', params.id)
+        .then(({ error }) => {
+          if (error) console.error('Metadata columns save (non-fatal):', error);
+        });
+    }
 
     return NextResponse.json({ status: 'review' }, { status: 200 });
   } catch (err) {
