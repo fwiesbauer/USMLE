@@ -104,11 +104,36 @@ export default async function DashboardPage() {
                       {quiz.status}
                     </span>
                   </div>
-                  {(quiz.source_reference || quiz.source_filename) && (
-                    <p className="text-xs text-gray-400 truncate">
-                      {quiz.source_reference || quiz.source_filename}
-                    </p>
-                  )}
+                  {(() => {
+                    const meta = quiz.source_metadata as {
+                      article_title?: string;
+                      authors?: { family: string; given: string }[];
+                      journal_abbreviation?: string;
+                      journal_title?: string;
+                      year?: number;
+                    } | null;
+                    if (meta?.article_title) {
+                      const authorStr = meta.authors?.length
+                        ? meta.authors.slice(0, 3).map((a) => `${a.family} ${a.given?.charAt(0) || ''}`).join(', ') + (meta.authors.length > 3 ? ', et al.' : '')
+                        : null;
+                      const journal = meta.journal_abbreviation || meta.journal_title;
+                      return (
+                        <div className="mt-1 space-y-0.5">
+                          {authorStr && (
+                            <p className="text-xs text-gray-500 truncate">{authorStr}</p>
+                          )}
+                          <p className="text-xs text-gray-400 italic truncate">
+                            {[journal, meta.year].filter(Boolean).join(', ')}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (quiz.source_reference || quiz.source_filename) ? (
+                      <p className="text-xs text-gray-400 truncate">
+                        {quiz.source_reference || quiz.source_filename}
+                      </p>
+                    ) : null;
+                  })()}
                   <p className="text-xs text-gray-400 mt-2">
                     {quiz.question_count_requested} questions ·{' '}
                     {new Date(quiz.created_at).toLocaleDateString()}
