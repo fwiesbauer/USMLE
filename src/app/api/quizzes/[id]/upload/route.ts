@@ -1,6 +1,7 @@
 import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { extractTextFromPDF } from '@/lib/pdf/extract-text';
 import { extractSourceReference, type SourceMetadata } from '@/lib/ai/extract-source-reference';
+import { enrichSourceMetadata } from '@/lib/metadata/enrich';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -83,6 +84,18 @@ export async function POST(
       }
     } catch {
       // Non-fatal — citation extraction is best-effort
+    }
+
+    // Best-effort enrichment: fill in PMID, PMCID, keywords, etc. from
+    // PubMed / Crossref. If it fails, sourceMetadata stays as-is.
+    if (sourceMetadata) {
+      try {
+        sourceMetadata = await enrichSourceMetadata(sourceMetadata);
+        // Update DOI in case enrichment discovered or confirmed it
+        if (sourceMetadata.doi && !doi) doi = sourceMetadata.doi;
+      } catch {
+        // Non-fatal — enrichment is best-effort
+      }
     }
 
     // Use the AI-suggested filename when available; fall back to the original upload name

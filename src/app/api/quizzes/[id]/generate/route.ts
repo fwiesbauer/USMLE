@@ -1,6 +1,7 @@
 import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { generateQuestions } from '@/lib/ai/generate-questions';
 import { extractSourceReference } from '@/lib/ai/extract-source-reference';
+import { enrichSourceMetadata } from '@/lib/metadata/enrich';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 import type { AIProvider } from '@/lib/ai/providers';
@@ -90,9 +91,20 @@ export async function POST(
         : Promise.resolve(null),
     ]);
     const sourceReference = refResult?.reference || null;
-    const doi = refResult?.doi || null;
-    const sourceMetadata = refResult?.metadata || null;
+    let doi = refResult?.doi || null;
+    let sourceMetadata = refResult?.metadata || null;
     const suggestedFilename = refResult?.metadata?.suggested_filename || null;
+
+    // Best-effort enrichment: fill in PMID, PMCID, keywords, etc. from
+    // PubMed / Crossref. If it fails, sourceMetadata stays as-is.
+    if (sourceMetadata) {
+      try {
+        sourceMetadata = await enrichSourceMetadata(sourceMetadata);
+        if (sourceMetadata.doi && !doi) doi = sourceMetadata.doi;
+      } catch {
+        // Non-fatal — enrichment is best-effort
+      }
+    }
 
     // Bulk insert questions
     const questionRows = questions.map((q) => ({
