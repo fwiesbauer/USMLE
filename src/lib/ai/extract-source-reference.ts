@@ -43,11 +43,15 @@ export async function extractSourceReference(
   // but keywords and author affiliations can extend further
   const excerpt = sourceText.slice(0, 6000);
 
-  // First, try to extract DOI via regex (more reliable than LLM for this)
+  // First, try to extract DOI, PMID, and PMCID via regex (more reliable than LLM for these)
   const regexDoi = extractDoiFromText(sourceText);
+  const regexPmid = extractPmidFromText(sourceText);
+  const regexPmcid = extractPmcidFromText(sourceText);
 
   const prompt = `You are a bibliographic extraction agent for uploaded medical/scientific PDFs.
 Read the following document excerpt and extract as much reliable bibliographic information as you can. Do NOT invent or guess any information — if a field is not present or unclear, use null.
+
+IMPORTANT for PMID and PMCID: Only extract these if you see an explicit "PMID" or "PMCID" label, or a PubMed/PMC URL (e.g. pubmed.ncbi.nlm.nih.gov/12345 or ncbi.nlm.nih.gov/pmc/articles/PMC12345). Do NOT guess these values from other numeric identifiers.
 
 Extract these fields:
 - article_title: The full title of the article/paper
@@ -145,8 +149,8 @@ ${excerpt}`;
     issue: raw.issue || null,
     pages: raw.pages || null,
     doi: raw.doi || regexDoi || null,
-    pmid: raw.pmid || null,
-    pmcid: raw.pmcid || null,
+    pmid: regexPmid || raw.pmid || null,
+    pmcid: regexPmcid || raw.pmcid || null,
     issn: raw.issn || null,
     keywords: Array.isArray(raw.keywords) ? raw.keywords : [],
     document_type: raw.document_type === 'manuscript' ? 'manuscript' : 'journal_article',
@@ -200,6 +204,55 @@ export function extractDoiFromText(text: string): string {
     const match = text.match(pattern);
     if (match?.[1]) {
       return match[1].replace(/[.)]+$/, '');
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Extracts a PubMed ID (PMID) from text using regex.
+ * Looks for explicit "PMID" labels or PubMed URLs — never guesses from bare numbers.
+ */
+export function extractPmidFromText(text: string): string {
+  const patterns = [
+    // PubMed URLs: pubmed.ncbi.nlm.nih.gov/12345678
+    /pubmed\.ncbi\.nlm\.nih\.gov\/(\d{6,10})/i,
+    // Older URL format: ncbi.nlm.nih.gov/pubmed/12345678
+    /ncbi\.nlm\.nih\.gov\/pubmed\/(\d{6,10})/i,
+    // Explicit label: PMID: 12345678 or PMID 12345678
+    /\bPMID[:\s]+(\d{6,10})\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Extracts a PubMed Central ID (PMCID) from text using regex.
+ * Looks for explicit "PMC" labels or PMC URLs — never guesses from bare numbers.
+ */
+export function extractPmcidFromText(text: string): string {
+  const patterns = [
+    // PMC URLs: ncbi.nlm.nih.gov/pmc/articles/PMC12345678
+    /ncbi\.nlm\.nih\.gov\/pmc\/articles\/(PMC\d{6,10})/i,
+    // Explicit label: PMCID: PMC12345678 or PMCID PMC12345678
+    /\bPMCID[:\s]+(PMC\d{6,10})\b/i,
+    // Bare PMC reference in text: PMC12345678
+    /\b(PMC\d{6,10})\b/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      // Normalize to uppercase PMC prefix
+      return match[1].toUpperCase();
     }
   }
 
