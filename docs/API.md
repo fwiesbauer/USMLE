@@ -26,16 +26,33 @@ Creates a new quiz in `draft` status.
 
 ```
 POST /api/quizzes/[id]/upload
-Body: FormData with 'file' field (PDF, max ~100k chars of text)
+Body: FormData with 'file' field (PDF, max 20 MB / ~100k chars of text)
+Max Duration: 60 seconds
 Response: {
-  text_preview: string,    // first 500 chars
+  pdf_storage_path: string,
+  source_text_preview: string,          // first 500 chars
   word_count: number,
-  source_reference: string | null,  // auto-extracted citation
-  doi: string | null                // auto-extracted DOI
+  page_count: number,
+  source_reference: string | null,      // formatted NEJM-style citation
+  source_metadata: SourceMetadata | null, // structured bibliographic metadata (JSONB)
+  suggested_filename: string | null,    // AI-suggested filename (e.g. "Smith 2024 - Cardiac Outcomes.pdf")
+  doi: string | null,
+  pmid: string | null,
+  pmcid: string | null,
+  warning: string | null
 }
 ```
 
-Extracts text from the uploaded PDF using `pdf-parse`. Optionally uses a lightweight AI call (Claude Haiku / GPT-4o-mini / Gemini Flash Lite) to extract a bibliographic citation and DOI from the first page. Uploads the PDF file to Supabase Storage.
+Processing pipeline:
+1. Extracts text from the PDF using `pdf-parse` (min 50 chars, max 100k chars).
+2. Extracts structured bibliographic metadata using a lightweight AI call (Claude Haiku / GPT-4o-mini / Gemini Flash Lite) plus regex extraction for DOI, PMID, and PMCID.
+3. Enriches metadata via external APIs (best-effort, non-blocking):
+   - **NCBI ID Converter**: Maps DOI → PMID + PMCID in a single call.
+   - **Crossref**: Fetches bibliographic data from DOI.
+   - **PubMed ESearch**: Searches by DOI or article title to discover PMID.
+   - **PubMed ESummary/EFetch**: Retrieves full metadata, MeSH terms, and author keywords.
+4. Uploads the PDF to Supabase Storage with the AI-suggested filename.
+5. Saves extracted text, identifiers (DOI, PMID, PMCID), source reference, and structured metadata to the database.
 
 ### Generate Questions
 
@@ -59,11 +76,18 @@ The core AI endpoint. Steps:
 
 ```
 PATCH /api/quizzes/[id]
-Body: { source_reference?: string, doi?: string }
-Response: { success: true }
+Body: {
+  title?: string,
+  source_reference?: string,
+  source_metadata?: SourceMetadata,
+  doi?: string,
+  pmid?: string,
+  pmcid?: string
+}
+Response: Quiz (full updated quiz object)
 ```
 
-Updates the quiz's bibliographic citation and/or DOI.
+Updates the quiz's title, bibliographic citation, structured metadata, and/or identifiers. The `source_metadata` field accepts a partial `SourceMetadata` object (article_title, authors, journal_title, journal_abbreviation, year, volume, issue, pages, doi, pmid, pmcid, issn, keywords, document_type, suggested_filename).
 
 ### Check Generation Status
 
@@ -168,6 +192,8 @@ Response: {
   title: string,
   source_reference: string | null,
   doi: string | null,
+  pmid: string | null,
+  pmcid: string | null,
   questions: PublicQuestion[]  // NO answers or explanations
 }
 ```
@@ -189,7 +215,9 @@ Response: {
   cor_loe: string,
   section: string,
   source_reference: string,
-  doi: string
+  doi: string,
+  pmid: string,
+  pmcid: string
 }
 ```
 

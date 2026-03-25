@@ -92,9 +92,14 @@ After deployment, update Supabase auth settings:
 
 ### Function Timeout
 
-The question generation endpoint (`/api/quizzes/[id]/generate`) can take 30–120+ seconds. It has `maxDuration = 300` set in the route handler.
+Two endpoints have extended timeouts configured:
 
-- **Vercel Hobby plan**: Max 60 seconds. May time out for large question counts.
+| Endpoint | `maxDuration` | Purpose |
+|----------|---------------|---------|
+| `/api/quizzes/[id]/generate` | 300s | AI question generation (30–120+ seconds) |
+| `/api/quizzes/[id]/upload` | 60s | PDF processing + PubMed/Crossref enrichment |
+
+- **Vercel Hobby plan**: Max 60 seconds. May time out for large question counts during generation.
 - **Vercel Pro plan**: Max 300 seconds. Recommended for production.
 
 If generation times out, reduce the question count (3–10 questions work well on Hobby).
@@ -121,8 +126,18 @@ experimental: {
 - **Vercel**: Dashboard → Functions tab shows API route logs and errors.
 - **Supabase**: Dashboard → Logs shows database queries and auth events.
 
+## Continuous Deployment (Auto-Merge)
+
+A GitHub Actions workflow (`.github/workflows/auto-merge-to-main.yml`) automatically merges any push to a `claude/**` branch into `main`. This means:
+
+1. Code pushed to the development branch is automatically merged to `main`.
+2. Vercel detects the push to `main` and auto-deploys.
+3. No manual pull request creation or merging is needed.
+
+The workflow runs with `contents: write` permissions and uses the `github-actions[bot]` identity for merge commits.
+
 ## Updating the App
 
-Push to your connected GitHub branch. Vercel auto-deploys on push.
+Push to your connected GitHub branch. Vercel auto-deploys on push (either directly from `main`, or via the auto-merge workflow from `claude/**` branches).
 
-For database schema changes, create a new migration file in `supabase/migrations/` and run it in the Supabase SQL Editor. Migration files should be numbered sequentially (e.g., `00009_your_change.sql`).
+For database schema changes, create a new migration file in `supabase/migrations/` and run it in the Supabase SQL Editor. Migration files should be numbered sequentially (e.g., `00011_your_change.sql`).

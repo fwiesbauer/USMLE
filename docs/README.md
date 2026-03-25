@@ -53,9 +53,9 @@ A quiz moves through four statuses:
 draft → generating → review → published
 ```
 
-1. **Draft** — Educator creates a quiz and uploads a PDF. The app extracts text from the PDF and optionally extracts a bibliographic citation and DOI using a lightweight AI call.
+1. **Draft** — Educator creates a quiz and uploads a PDF. The app extracts text from the PDF, extracts a structured bibliographic citation (authors, title, journal, DOI) using a lightweight AI call, and enriches the metadata by looking up PubMed (PMID, PMCID, MeSH terms) and Crossref (bibliographic data).
 2. **Generating** — The AI generates questions from the extracted text. This can take 30–120 seconds depending on question count (3–30 questions per quiz).
-3. **Review** — Educator reviews, edits, deletes, or approves the AI-generated questions. Each question includes a clinical vignette, five answer options, an explanation, key pearls, and metadata (organ system, physician task, discipline, COR/LOE).
+3. **Review** — Educator reviews, edits, deletes, or approves the AI-generated questions. Each question includes a clinical vignette, five answer options, an explanation, key pearls, and metadata (organ system, physician task, discipline, COR/LOE). Source reference fields (authors, article title, journal, publication info) are individually editable; DOI, PMID, and PMCID are displayed as read-only identifiers with clickable links.
 4. **Published** — A unique share token is generated. Anyone with the link `/q/{token}` can take the quiz.
 
 ### Question Format
@@ -114,3 +114,8 @@ The project was built iteratively, feature by feature. Here is the chronological
 20. **Admin improvements** — Added share link and total question count columns to admin tables. Fixed admin link visibility by using service client to bypass RLS for role check.
 21. **Share link fix** — Fixed share URLs that broke when using hardcoded absolute URLs. Admin pages now use relative `/q/{token}` paths; publish endpoint constructs URLs from request headers with fallback to `NEXT_PUBLIC_APP_URL`.
 22. **Sign-out fix** — Fixed HTTP 405 error on logout. The form POST to `/api/auth/logout` caused a 307 redirect that preserved the POST method on `/login` (a GET-only page). Refactored to a client-side `SignOutButton` component that calls `supabase.auth.signOut()` directly and navigates with `router.push()`.
+23. **Structured source metadata** — Replaced free-text citation extraction with structured bibliographic metadata: article title, authors, journal, year, volume, issue, pages, DOI, PMID, PMCID, keywords, and document type. Stored as JSONB in a `source_metadata` column. AI-suggested filenames are generated for uploaded PDFs.
+24. **PubMed/Crossref enrichment** — After PDF upload, the app enriches extracted metadata by querying external APIs: Crossref (bibliographic data from DOI), NCBI ID Converter (DOI → PMID + PMCID), PubMed ESearch (DOI/title-based PMID discovery), and PubMed ESummary/EFetch (full metadata, MeSH terms, author keywords). Uses a multi-layered fallback strategy with parallel API calls for speed.
+25. **Dedicated PMID/PMCID columns** — Added dedicated `pmid` and `pmcid` columns to the quizzes table for reliable persistence. These identifiers are extracted via regex, LLM, and enrichment APIs, then saved as top-level columns (in addition to being inside `source_metadata` JSONB).
+26. **Structured reference editing** — Broke the single "Source reference" edit field into four separately editable fields: Authors, Article title, Journal, and Year/Volume/Issue/Pages. DOI, PMID, and PMCID are displayed as non-editable, clickable identifiers. Changes update both `source_metadata` JSONB and the reconstructed `source_reference` string.
+27. **Auto-merge CI** — Added a GitHub Actions workflow (`.github/workflows/auto-merge-to-main.yml`) that automatically merges pushes to `claude/**` branches into `main`, eliminating the need for manual pull request creation and merging. Vercel auto-deploys from `main`.

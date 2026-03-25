@@ -81,11 +81,17 @@ src/
 ├── lib/
 │   ├── ai/
 │   │   ├── generate.ts              # Calls AI provider, parses + validates JSON response
-│   │   └── prompt.ts                # The full USMLE question generation prompt
+│   │   ├── prompt.ts                # The full USMLE question generation prompt
+│   │   ├── providers.ts             # AI provider abstraction (Anthropic/OpenAI/Google)
+│   │   └── extract-source-reference.ts  # LLM + regex extraction of bibliographic metadata
 │   ├── crypto/
 │   │   └── encrypt.ts               # AES-256-GCM encrypt/decrypt for API keys
+│   ├── metadata/
+│   │   ├── enrich.ts                # Orchestrates PubMed + Crossref enrichment
+│   │   ├── pubmed.ts                # PubMed E-utilities API (PMID lookup, DOI→PMID, title search)
+│   │   └── crossref.ts             # Crossref REST API (DOI → bibliographic data)
 │   ├── pdf/
-│   │   └── extract.ts               # Extract text from uploaded PDF (pdf-parse)
+│   │   └── extract-text.ts          # Extract text from uploaded PDF (pdf-parse)
 │   ├── supabase/
 │   │   ├── client.ts                # Browser-side Supabase client
 │   │   ├── server.ts                # Server-side Supabase client (cookie-based auth)
@@ -108,7 +114,13 @@ supabase/
     ├── 00005_add_feedback_and_doi.sql           # Comments, votes, DOI
     ├── 00006_add_ai_provider.sql                # Multi-provider support
     ├── 00007_add_site_feedback.sql              # Site feedback table
-    └── 00008_add_educator_role.sql              # Admin role for educators
+    ├── 00008_add_educator_role.sql              # Admin role for educators
+    ├── 00009_add_source_metadata.sql            # Structured metadata JSONB + suggested_filename
+    └── 00010_add_pmid_pmcid_columns.sql         # Dedicated PMID/PMCID columns
+
+.github/
+└── workflows/
+    └── auto-merge-to-main.yml        # Auto-merges claude/* branches into main
 
 public/                               # Static assets
 ├── apple-touch-icon.png              # 180x180 iOS icon
@@ -133,9 +145,15 @@ New Quiz Page (/quizzes/new)
     ├─ 2. Upload PDF ──────────► POST /api/quizzes/[id]/upload
     │      │                         │
     │      │                         ├─ Extract text (pdf-parse, max 100k chars)
-    │      │                         ├─ Extract citation + DOI (AI, optional)
+    │      │                         ├─ Extract structured metadata (AI + regex)
+    │      │                         │    └─ DOI, PMID, PMCID, authors, title, journal...
+    │      │                         ├─ Enrich via PubMed/Crossref APIs
+    │      │                         │    ├─ NCBI ID Converter (DOI → PMID + PMCID)
+    │      │                         │    ├─ Crossref (DOI → bibliographic data)
+    │      │                         │    ├─ PubMed ESearch (title search fallback)
+    │      │                         │    └─ PubMed ESummary/EFetch (MeSH, keywords)
     │      │                         ├─ Upload PDF to Supabase Storage
-    │      │                         └─ Return text preview + word count
+    │      │                         └─ Return text preview + metadata + identifiers
     │      │
     ├─ 3. Choose question count (3–30)
     └─ 4. Click "Generate" ───► POST /api/quizzes/[id]/generate
@@ -185,7 +203,8 @@ QuizQuestion (one at a time)
     ├─ POST /api/public/quizzes/{token}/reveal
     │      body: { question_id, selected_answer }
     │      returns: { correct_answer, is_correct, explanation,
-    │                 nuggets, cor_loe, section, source_reference, doi }
+    │                 nuggets, cor_loe, section, source_reference,
+    │                 doi, pmid, pmcid }
     │
     ├─ Show correct/incorrect feedback + explanation + pearls
     │

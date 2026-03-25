@@ -52,14 +52,43 @@ Extends Supabase's `auth.users` with app-specific fields.
 | `title` | TEXT | NOT NULL | Quiz title |
 | `source_filename` | TEXT | nullable | Original PDF filename |
 | `source_text` | TEXT | nullable | Extracted text from PDF (max ~100k chars) |
-| `source_reference` | TEXT | nullable | Formatted bibliographic citation |
+| `source_reference` | TEXT | nullable | Formatted bibliographic citation (NEJM-style) |
 | `doi` | TEXT | nullable | Digital Object Identifier |
+| `pmid` | TEXT | nullable | PubMed identifier (e.g. "12345678") |
+| `pmcid` | TEXT | nullable | PubMed Central identifier (e.g. "PMC12345678") |
+| `source_metadata` | JSONB | nullable | Structured bibliographic metadata (see below) |
+| `suggested_filename` | TEXT | nullable | AI-suggested PDF filename |
 | `pdf_storage_path` | TEXT | nullable | Path in Supabase Storage |
 | `status` | TEXT | NOT NULL, DEFAULT 'draft' | 'draft', 'generating', 'review', 'published' |
 | `share_token` | TEXT | UNIQUE, nullable | UUID token for public access |
 | `question_count_requested` | INT | NOT NULL, DEFAULT 10 | How many questions the educator requested |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Creation time |
 | `published_at` | TIMESTAMPTZ | nullable | When the quiz was published |
+
+#### `source_metadata` JSONB Structure
+
+The `source_metadata` column stores structured bibliographic data extracted from the uploaded PDF and enriched via PubMed/Crossref APIs:
+
+```json
+{
+  "article_title": "Effect of Aspirin on Cardiovascular Events",
+  "authors": [{"family": "Smith", "given": "JA"}, {"family": "Jones", "given": "B"}],
+  "journal_title": "New England Journal of Medicine",
+  "journal_abbreviation": "N Engl J Med",
+  "year": 2024,
+  "publication_date": "2024-03-15",
+  "volume": "392",
+  "issue": "15",
+  "pages": "1432-1440",
+  "doi": "10.1056/NEJMoa2401234",
+  "pmid": "38765432",
+  "pmcid": "PMC11234567",
+  "issn": "0028-4793",
+  "keywords": ["Aspirin", "Cardiovascular Events", "Myocardial Infarction"],
+  "document_type": "journal_article",
+  "suggested_filename": "Smith 2024 - Aspirin Cardiovascular Events.pdf"
+}
+```
 
 ### `questions`
 
@@ -212,3 +241,5 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | 6 | `00006_add_ai_provider.sql` | Adds `ai_provider` column to educators |
 | 7 | `00007_add_site_feedback.sql` | Creates `site_feedback` table with RLS for educator feedback |
 | 8 | `00008_add_educator_role.sql` | Adds `role` column to educators (`educator` or `admin`) |
+| 9 | `00009_add_source_metadata.sql` | Adds `source_metadata` (JSONB) and `suggested_filename` columns to quizzes |
+| 10 | `00010_add_pmid_pmcid_columns.sql` | Adds dedicated `pmid` and `pmcid` TEXT columns to quizzes |
