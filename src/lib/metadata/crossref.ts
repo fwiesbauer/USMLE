@@ -11,8 +11,8 @@
 
 const CROSSREF_WORKS_URL = 'https://api.crossref.org/works';
 
-/** Timeout for each HTTP request (5 seconds). */
-const REQUEST_TIMEOUT_MS = 5_000;
+/** Timeout for each HTTP request (10 seconds). */
+const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
  * Polite User-Agent per Crossref guidelines.

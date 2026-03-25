@@ -97,9 +97,19 @@ export async function POST(
     let sourceMetadata = refResult?.metadata || null;
     const suggestedFilename = refResult?.metadata?.suggested_filename || null;
 
+    // If we didn't re-extract (reference already existed), use the quiz's
+    // existing metadata and identifiers as the starting point for enrichment.
+    if (!sourceMetadata && quiz.source_metadata) {
+      sourceMetadata = quiz.source_metadata as import('@/lib/ai/extract-source-reference').SourceMetadata;
+    }
+    if (!doi) doi = quiz.doi || null;
+    if (!pmid) pmid = quiz.pmid || null;
+    if (!pmcid) pmcid = quiz.pmcid || null;
+
     // Best-effort enrichment: fill in PMID, PMCID, keywords, etc. from
-    // PubMed / Crossref. If it fails, sourceMetadata stays as-is.
-    if (sourceMetadata) {
+    // PubMed / Crossref. Run if we still lack identifiers OR if metadata
+    // was freshly extracted.
+    if (sourceMetadata && (!pmid || !pmcid)) {
       try {
         sourceMetadata = await enrichSourceMetadata(sourceMetadata);
         if (sourceMetadata.doi && !doi) doi = sourceMetadata.doi;

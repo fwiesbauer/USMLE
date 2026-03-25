@@ -16,8 +16,8 @@ const ESUMMARY_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcg
 const EFETCH_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi';
 const ESEARCH_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi';
 
-/** Timeout for each HTTP request (5 seconds). */
-const REQUEST_TIMEOUT_MS = 5_000;
+/** Timeout for each HTTP request (10 seconds). */
+const REQUEST_TIMEOUT_MS = 10_000;
 
 /** What we get back from a PubMed lookup. */
 export interface PubMedResult {
