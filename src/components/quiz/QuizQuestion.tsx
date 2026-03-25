@@ -194,16 +194,24 @@ export function QuizQuestion({
   const progressPercent = ((currentIndex + (reveal ? 1 : 0)) / totalQuestions) * 100;
 
   // Build DOI URL — try explicit doi field first, then extract from reference text
+  const cleanDoi = (raw: string): string => {
+    // Extract just the DOI (10.XXXX/...) — stop at whitespace or "http"
+    const match = raw.match(/(10\.\d{4,}\/[^\s]+)/);
+    if (!match) return '';
+    // Trim trailing punctuation and any URL that got concatenated
+    return match[1].replace(/https?:\/\/.*$/, '').replace(/[.)]+$/, '');
+  };
+
   const extractDoiUrl = (text: string): string => {
     const match = text.match(/https?:\/\/doi\.org\/(10\.\d{4,}\/[^\s,;)}\]"']+)/i)
       || text.match(/doi\.org\/(10\.\d{4,}\/[^\s,;)}\]"']+)/i)
       || text.match(/doi[:\s]+\s*(10\.\d{4,}\/[^\s,;)}\]"']+)/i);
-    if (match?.[1]) return `https://doi.org/${match[1].replace(/[.)]+$/, '')}`;
+    if (match?.[1]) return `https://doi.org/${cleanDoi(match[1])}`;
     return '';
   };
 
   const doiUrl = reveal?.doi
-    ? `https://doi.org/${reveal.doi}`
+    ? `https://doi.org/${cleanDoi(reveal.doi)}`
     : (reveal?.source_reference ? extractDoiUrl(reveal.source_reference) : '');
 
   // Certainty message for the feedback panel
