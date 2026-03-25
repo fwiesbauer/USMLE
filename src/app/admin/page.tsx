@@ -384,8 +384,8 @@ export default async function AdminPage({ searchParams }: Props) {
                   const pctCorrect = q.attempts > 0 ? Math.round((q.correct / q.attempts) * 100) : null;
                   return (
                   <tr key={q.id} className="hover:bg-gray-50 align-top">
-                    <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap" title={q.id}>
-                      {q.id.slice(0, 8)}
+                    <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap">
+                      <span className="select-all cursor-pointer" title="Click to select full ID">{q.id}</span>
                     </td>
                     <td className="px-4 py-3 text-gray-800 max-w-xs">
                       <p className="font-medium text-sm">{q.topic || '—'}</p>
