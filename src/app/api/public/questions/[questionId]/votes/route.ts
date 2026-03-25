@@ -16,6 +16,7 @@ function getServiceClient() {
 const VoteSchema = z.object({
   visitor_id: z.string().min(1),
   vote: z.union([z.literal(1), z.literal(-1)]),
+  attempt_id: z.string().uuid().optional(),
 });
 
 export async function GET(
@@ -65,7 +66,7 @@ export async function POST(
     // Check if the visitor already has a vote
     const { data: existing, error: selectError } = await supabase
       .from('question_votes')
-      .select('id, vote')
+      .select('id, vote, attempt_id')
       .eq('question_id', params.questionId)
       .eq('visitor_id', parsed.data.visitor_id)
       .maybeSingle();
@@ -79,7 +80,10 @@ export async function POST(
       // Update existing vote
       const { error: updateError } = await supabase
         .from('question_votes')
-        .update({ vote: parsed.data.vote })
+        .update({
+          vote: parsed.data.vote,
+          attempt_id: parsed.data.attempt_id || existing.attempt_id || null,
+        })
         .eq('id', existing.id);
 
       if (updateError) {
@@ -94,6 +98,7 @@ export async function POST(
           question_id: params.questionId,
           visitor_id: parsed.data.visitor_id,
           vote: parsed.data.vote,
+          attempt_id: parsed.data.attempt_id || null,
         });
 
       if (insertError) {

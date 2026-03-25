@@ -59,8 +59,8 @@ export async function POST(
   const isCorrect =
     parsed.data.selected_answer === question.correct_answer;
 
-  // Store the attempt in the database
-  const { error: attemptError } = await supabase
+  // Store the attempt in the database and return its id
+  const { data: attempt, error: attemptError } = await supabase
     .from('question_attempts')
     .insert({
       question_id: parsed.data.question_id,
@@ -70,13 +70,16 @@ export async function POST(
       is_correct: isCorrect,
       certainty: parsed.data.certainty || null,
       session_id: parsed.data.session_id || null,
-    });
+    })
+    .select('id')
+    .single();
 
   if (attemptError) {
     console.error('Attempt insert error:', attemptError);
   }
 
   return NextResponse.json({
+    attempt_id: attempt?.id || null,
     correct_answer: question.correct_answer,
     is_correct: isCorrect,
     explanation: question.explanation,

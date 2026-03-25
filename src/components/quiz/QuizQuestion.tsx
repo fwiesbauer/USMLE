@@ -116,7 +116,7 @@ export function QuizQuestion({
       const res = await fetch(`/api/public/questions/${question.id}/votes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visitor_id: visitorId, vote }),
+        body: JSON.stringify({ visitor_id: visitorId, vote, attempt_id: reveal?.attempt_id }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -145,6 +145,7 @@ export function QuizQuestion({
         body: JSON.stringify({
           commenter_name: commenterName.trim() || undefined,
           comment_text: commentText.trim(),
+          attempt_id: reveal?.attempt_id,
         }),
       });
       if (res.ok) {

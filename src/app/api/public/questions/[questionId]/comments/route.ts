@@ -16,6 +16,7 @@ function getServiceClient() {
 const CommentSchema = z.object({
   commenter_name: z.string().max(100).optional(),
   comment_text: z.string().min(1).max(2000),
+  attempt_id: z.string().uuid().optional(),
 });
 
 export async function GET(
@@ -66,6 +67,7 @@ export async function POST(
         question_id: params.questionId,
         commenter_name: parsed.data.commenter_name || null,
         comment_text: parsed.data.comment_text,
+        attempt_id: parsed.data.attempt_id || null,
       })
       .select()
       .single();
