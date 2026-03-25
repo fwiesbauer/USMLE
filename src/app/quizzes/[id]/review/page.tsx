@@ -35,8 +35,10 @@ export default function ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [editingHeader, setEditingHeader] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
-  const [sourceRefDraft, setSourceRefDraft] = useState('');
-  const [doiDraft, setDoiDraft] = useState('');
+  const [authorsDraft, setAuthorsDraft] = useState('');
+  const [articleTitleDraft, setArticleTitleDraft] = useState('');
+  const [journalDraft, setJournalDraft] = useState('');
+  const [pubInfoDraft, setPubInfoDraft] = useState('');
   const [feedbackStats, setFeedbackStats] = useState<FeedbackStats>({});
   const [selectedComments, setSelectedComments] = useState<QuestionComment[]>([]);
 
@@ -169,31 +171,112 @@ export default function ReviewPage() {
   const startEditingHeader = () => {
     if (!quiz) return;
     setTitleDraft(quiz.title);
-    setSourceRefDraft((quiz.source_reference || '').replace(/^\d+\.\s*/, ''));
-    setDoiDraft(quiz.doi || '');
+    const meta = quiz.source_metadata;
+    if (meta) {
+      // Pre-fill from structured metadata
+      const authorStr = meta.authors?.length
+        ? meta.authors.map((a) => `${a.family} ${a.given || ''}`).join(', ')
+        : '';
+      setAuthorsDraft(authorStr);
+      setArticleTitleDraft(meta.article_title || '');
+      setJournalDraft(meta.journal_abbreviation || meta.journal_title || '');
+      // Build publication info: "2024;392(15):1432-1440"
+      const parts: string[] = [];
+      if (meta.year) parts.push(String(meta.year));
+      if (meta.volume) {
+        let vol = meta.volume;
+        if (meta.issue) vol += `(${meta.issue})`;
+        if (meta.pages) vol += `:${meta.pages}`;
+        parts.push(vol);
+      } else if (meta.pages) {
+        parts.push(meta.pages);
+      }
+      setPubInfoDraft(parts.join(';'));
+    } else {
+      // No structured metadata — leave fields empty for manual entry
+      setAuthorsDraft('');
+      setArticleTitleDraft('');
+      setJournalDraft('');
+      setPubInfoDraft('');
+    }
     setEditingHeader(true);
   };
 
   const handleSaveHeader = async () => {
     if (!quiz) return;
-    const updates: Record<string, string> = {};
+
+    // Parse authors string back to structured array
+    // Format: "Smith JA, Jones B, Williams CD"
+    const parsedAuthors = authorsDraft
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((entry) => {
+        const parts = entry.split(/\s+/);
+        const family = parts[0] || '';
+        const given = parts.slice(1).join(' ') || '';
+        return { family, given };
+      });
+
+    // Parse publication info: "2024;392(15):1432-1440"
+    let year: number | null = null;
+    let volume: string | null = null;
+    let issue: string | null = null;
+    let pages: string | null = null;
+    const pubMatch = pubInfoDraft.match(
+      /^(\d{4})(?:;([^(:]+)(?:\(([^)]+)\))?(?::(.+))?)?$/
+    );
+    if (pubMatch) {
+      year = parseInt(pubMatch[1], 10);
+      volume = pubMatch[2]?.trim() || null;
+      issue = pubMatch[3]?.trim() || null;
+      pages = pubMatch[4]?.trim() || null;
+    } else if (/^\d{4}$/.test(pubInfoDraft.trim())) {
+      year = parseInt(pubInfoDraft.trim(), 10);
+    }
+
+    // Build updated source_metadata by merging with existing (preserves DOI, PMID, etc.)
+    const existingMeta = quiz.source_metadata || ({} as Partial<NonNullable<Quiz['source_metadata']>>);
+    const updatedMeta = {
+      ...existingMeta,
+      article_title: articleTitleDraft.trim() || null,
+      authors: parsedAuthors,
+      journal_abbreviation: journalDraft.trim() || null,
+      journal_title: existingMeta.journal_title || journalDraft.trim() || null,
+      year,
+      volume,
+      issue,
+      pages,
+    };
+
+    // Reconstruct source_reference from parts
+    const refParts: string[] = [];
+    if (authorsDraft.trim()) refParts.push(authorsDraft.trim());
+    if (articleTitleDraft.trim()) refParts.push(articleTitleDraft.trim());
+    if (journalDraft.trim()) refParts.push(journalDraft.trim());
+    if (pubInfoDraft.trim()) refParts.push(pubInfoDraft.trim());
+    const newRef = refParts.length > 0
+      ? refParts.join('. ').replace(/\.\./g, '.') + (quiz.doi ? `. doi:${quiz.doi}` : '')
+      : '';
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updates: Record<string, any> = {};
     if (titleDraft.trim() && titleDraft.trim() !== quiz.title) {
       updates.title = titleDraft.trim();
     }
-    if (sourceRefDraft !== (quiz.source_reference || '')) {
-      updates.source_reference = sourceRefDraft;
-    }
-    if (doiDraft !== (quiz.doi || '')) {
-      updates.doi = doiDraft;
-    }
-    if (Object.keys(updates).length > 0) {
-      await fetch(`/api/quizzes/${quizId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-      setQuiz({ ...quiz, ...updates });
-    }
+    updates.source_reference = newRef;
+    updates.source_metadata = updatedMeta;
+
+    await fetch(`/api/quizzes/${quizId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    setQuiz({
+      ...quiz,
+      ...updates,
+      source_metadata: updatedMeta as Quiz['source_metadata'],
+    });
     setEditingHeader(false);
   };
 
@@ -224,7 +307,7 @@ export default function ReviewPage() {
             {editingHeader ? (
               <div className="mt-1 space-y-2 max-w-xl">
                 <div>
-                  <label className="text-xs font-medium text-gray-500">Title</label>
+                  <label className="text-xs font-medium text-gray-500">Quiz title</label>
                   <input
                     autoFocus
                     value={titleDraft}
@@ -233,21 +316,49 @@ export default function ReviewPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500">Source reference</label>
+                  <label className="text-xs font-medium text-gray-500">Authors</label>
                   <input
-                    value={sourceRefDraft}
-                    onChange={(e) => setSourceRefDraft(e.target.value)}
+                    value={authorsDraft}
+                    onChange={(e) => setAuthorsDraft(e.target.value)}
+                    placeholder="e.g. Smith JA, Jones B, Williams CD"
                     className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500">DOI</label>
+                  <label className="text-xs font-medium text-gray-500">Article title</label>
                   <input
-                    value={doiDraft}
-                    onChange={(e) => setDoiDraft(e.target.value)}
-                    placeholder="e.g. 10.1234/example"
+                    value={articleTitleDraft}
+                    onChange={(e) => setArticleTitleDraft(e.target.value)}
+                    placeholder="Title of the publication"
                     className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
                   />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Journal</label>
+                  <input
+                    value={journalDraft}
+                    onChange={(e) => setJournalDraft(e.target.value)}
+                    placeholder="e.g. N Engl J Med"
+                    className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Year; Volume(Issue):Pages</label>
+                  <input
+                    value={pubInfoDraft}
+                    onChange={(e) => setPubInfoDraft(e.target.value)}
+                    placeholder="e.g. 2024;392(15):1432-1440"
+                    className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                  />
+                </div>
+                {/* Read-only identifiers */}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 pt-1 border-t border-gray-100">
+                  {quiz.doi && <span>DOI: {quiz.doi}</span>}
+                  {quiz.pmid && <span>PMID: {quiz.pmid}</span>}
+                  {quiz.pmcid && <span>PMCID: {quiz.pmcid}</span>}
+                  {!quiz.doi && !quiz.pmid && !quiz.pmcid && (
+                    <span className="italic">No identifiers found</span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -283,9 +394,21 @@ export default function ReviewPage() {
                   const meta = quiz.source_metadata;
                   if (meta?.article_title) {
                     const authorStr = meta.authors?.length
-                      ? meta.authors.map((a) => `${a.family} ${a.given?.charAt(0) || ''}`).join(', ')
+                      ? meta.authors.map((a) => `${a.family} ${a.given || ''}`).join(', ')
                       : null;
                     const journalStr = meta.journal_abbreviation || meta.journal_title;
+                    // Build publication line: "Journal. 2024;392(15):1432-1440"
+                    const pubParts: string[] = [];
+                    if (journalStr) pubParts.push(journalStr);
+                    if (meta.year) {
+                      let yearStr = String(meta.year);
+                      if (meta.volume) {
+                        yearStr += `;${meta.volume}`;
+                        if (meta.issue) yearStr += `(${meta.issue})`;
+                        if (meta.pages) yearStr += `:${meta.pages}`;
+                      }
+                      pubParts.push(yearStr);
+                    }
                     return (
                       <div className="mt-1 space-y-0.5">
                         {authorStr && (
@@ -294,23 +417,47 @@ export default function ReviewPage() {
                         <p className="text-xs text-gray-700 font-medium truncate max-w-xl">
                           {meta.article_title}
                         </p>
-                        <p className="text-xs text-gray-400">
-                          {[journalStr, meta.year].filter(Boolean).join(', ')}
-                        </p>
-                        {quiz.doi && (
-                          <a
-                            href={`https://doi.org/${quiz.doi}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-brand-mid hover:underline block"
-                          >
-                            DOI: {quiz.doi}
-                          </a>
+                        {pubParts.length > 0 && (
+                          <p className="text-xs text-gray-400">
+                            {pubParts.join('. ')}
+                          </p>
                         )}
+                        <div className="flex flex-wrap gap-x-3 text-xs">
+                          {quiz.doi && (
+                            <a
+                              href={`https://doi.org/${quiz.doi}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand-mid hover:underline"
+                            >
+                              DOI: {quiz.doi}
+                            </a>
+                          )}
+                          {quiz.pmid && (
+                            <a
+                              href={`https://pubmed.ncbi.nlm.nih.gov/${quiz.pmid}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand-mid hover:underline"
+                            >
+                              PMID: {quiz.pmid}
+                            </a>
+                          )}
+                          {quiz.pmcid && (
+                            <a
+                              href={`https://ncbi.nlm.nih.gov/pmc/articles/${quiz.pmcid}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-brand-mid hover:underline"
+                            >
+                              {quiz.pmcid}
+                            </a>
+                          )}
+                        </div>
                       </div>
                     );
                   }
-                  // Fallback: show source_reference + DOI
+                  // Fallback: show source_reference + identifiers
                   return (
                     <div className="mt-1 space-y-0.5">
                       {quiz.source_reference && (
@@ -318,18 +465,40 @@ export default function ReviewPage() {
                           {quiz.source_reference.replace(/^\d+\.\s*/, '')}
                         </p>
                       )}
-                      {quiz.doi ? (
-                        <a
-                          href={`https://doi.org/${quiz.doi}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-brand-mid hover:underline block"
-                        >
-                          DOI: {quiz.doi}
-                        </a>
-                      ) : (
-                        <span className="text-xs text-gray-400 italic">No DOI set</span>
-                      )}
+                      <div className="flex flex-wrap gap-x-3 text-xs">
+                        {quiz.doi ? (
+                          <a
+                            href={`https://doi.org/${quiz.doi}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-mid hover:underline"
+                          >
+                            DOI: {quiz.doi}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 italic">No DOI set</span>
+                        )}
+                        {quiz.pmid && (
+                          <a
+                            href={`https://pubmed.ncbi.nlm.nih.gov/${quiz.pmid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-mid hover:underline"
+                          >
+                            PMID: {quiz.pmid}
+                          </a>
+                        )}
+                        {quiz.pmcid && (
+                          <a
+                            href={`https://ncbi.nlm.nih.gov/pmc/articles/${quiz.pmcid}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-mid hover:underline"
+                          >
+                            {quiz.pmcid}
+                          </a>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

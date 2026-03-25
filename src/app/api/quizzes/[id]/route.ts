@@ -2,9 +2,29 @@ import { createServerClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
+const SourceMetadataSchema = z.object({
+  article_title: z.string().nullable().optional(),
+  authors: z.array(z.object({ family: z.string(), given: z.string() })).optional(),
+  journal_title: z.string().nullable().optional(),
+  journal_abbreviation: z.string().nullable().optional(),
+  year: z.number().nullable().optional(),
+  publication_date: z.string().nullable().optional(),
+  volume: z.string().nullable().optional(),
+  issue: z.string().nullable().optional(),
+  pages: z.string().nullable().optional(),
+  doi: z.string().nullable().optional(),
+  pmid: z.string().nullable().optional(),
+  pmcid: z.string().nullable().optional(),
+  issn: z.string().nullable().optional(),
+  keywords: z.array(z.string()).optional(),
+  document_type: z.enum(['journal_article', 'manuscript']).optional(),
+  suggested_filename: z.string().optional(),
+}).optional();
+
 const UpdateQuizSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   source_reference: z.string().optional(),
+  source_metadata: SourceMetadataSchema,
   doi: z.string().optional(),
   pmid: z.string().optional(),
   pmcid: z.string().optional(),
