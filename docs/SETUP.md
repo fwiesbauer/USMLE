@@ -40,6 +40,8 @@ Run the SQL migrations in order against your Supabase database. Go to the **SQL 
 00006_add_ai_provider.sql      — Multi-provider AI support
 00007_add_site_feedback.sql    — Site feedback table for educator feedback widget
 00008_add_educator_role.sql    — Admin role column on educators
+00009_add_source_metadata.sql  — Structured metadata JSONB + suggested filename
+00010_add_pmid_pmcid_columns.sql — Dedicated PMID/PMCID columns
 ```
 
 Run them **in numerical order** — each migration builds on the previous one.
