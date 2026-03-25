@@ -53,6 +53,7 @@ export default async function AdminPage({ searchParams }: Props) {
   let allQuestions: Array<{
     id: string;
     question_text: string;
+    topic: string;
     organ_systems: string[];
     physician_tasks: string[];
     disciplines: string[];
@@ -65,6 +66,16 @@ export default async function AdminPage({ searchParams }: Props) {
     source_metadata: Record<string, unknown> | null;
     doi: string | null;
     share_token: string | null;
+    // Analytics
+    attempts: number;
+    correct: number;
+    incorrect: number;
+    certain: number;
+    medium: number;
+    uncertain: number;
+    thumbs_up: number;
+    thumbs_down: number;
+    comment_count: number;
   }> = [];
 
   if (tab === 'users') {
@@ -118,16 +129,62 @@ export default async function AdminPage({ searchParams }: Props) {
     // All Questions tab
     const { data: questions } = await service
       .from('questions')
-      .select('id, question_text, organ_systems, physician_tasks, disciplines, created_at, quiz_id')
+      .select('id, question_text, topic, organ_systems, physician_tasks, disciplines, created_at, quiz_id')
       .order('created_at', { ascending: false })
       .limit(500);
 
     if (questions && questions.length > 0) {
+      const questionIds = questions.map((q) => q.id);
       const quizIds = Array.from(new Set(questions.map((q) => q.quiz_id)));
-      const { data: quizzes } = await service
-        .from('quizzes')
-        .select('id, educator_id, source_reference, source_filename, source_metadata, doi, share_token')
-        .in('id', quizIds);
+
+      // Fetch quizzes, educators, and analytics in parallel
+      const [
+        { data: quizzes },
+        { data: attempts },
+        { data: votes },
+        { data: commentCounts },
+      ] = await Promise.all([
+        service
+          .from('quizzes')
+          .select('id, educator_id, source_reference, source_filename, source_metadata, doi, share_token')
+          .in('id', quizIds),
+        service
+          .from('question_attempts')
+          .select('question_id, is_correct, certainty')
+          .in('question_id', questionIds),
+        service
+          .from('question_votes')
+          .select('question_id, vote')
+          .in('question_id', questionIds),
+        service
+          .from('question_comments')
+          .select('question_id')
+          .in('question_id', questionIds),
+      ]);
+
+      // Build attempt stats per question
+      const attemptStats: Record<string, { attempts: number; correct: number; incorrect: number; certain: number; medium: number; uncertain: number }> = {};
+      for (const a of attempts || []) {
+        const s = attemptStats[a.question_id] || (attemptStats[a.question_id] = { attempts: 0, correct: 0, incorrect: 0, certain: 0, medium: 0, uncertain: 0 });
+        s.attempts++;
+        if (a.is_correct) s.correct++; else s.incorrect++;
+        if (a.certainty === 'certain') s.certain++;
+        else if (a.certainty === 'medium') s.medium++;
+        else if (a.certainty === 'uncertain') s.uncertain++;
+      }
+
+      // Build vote stats per question
+      const voteStats: Record<string, { up: number; down: number }> = {};
+      for (const v of votes || []) {
+        const s = voteStats[v.question_id] || (voteStats[v.question_id] = { up: 0, down: 0 });
+        if (v.vote === 1) s.up++; else s.down++;
+      }
+
+      // Build comment counts per question
+      const commentCountMap: Record<string, number> = {};
+      for (const c of commentCounts || []) {
+        commentCountMap[c.question_id] = (commentCountMap[c.question_id] || 0) + 1;
+      }
 
       const quizMap: Record<string, { educator_id: string; source_reference: string | null; source_filename: string | null; source_metadata: Record<string, unknown> | null; doi: string | null; share_token: string | null }> = {};
       for (const q of quizzes || []) {
@@ -148,9 +205,12 @@ export default async function AdminPage({ searchParams }: Props) {
       allQuestions = questions.map((q) => {
         const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null, source_metadata: null, doi: null, share_token: null };
         const ed = edMap[quiz.educator_id] || { email: '—', display_name: null };
+        const as = attemptStats[q.id] || { attempts: 0, correct: 0, incorrect: 0, certain: 0, medium: 0, uncertain: 0 };
+        const vs = voteStats[q.id] || { up: 0, down: 0 };
         return {
           id: q.id,
           question_text: q.question_text,
+          topic: q.topic || '',
           organ_systems: q.organ_systems || [],
           physician_tasks: q.physician_tasks || [],
           disciplines: q.disciplines || [],
@@ -163,6 +223,15 @@ export default async function AdminPage({ searchParams }: Props) {
           source_metadata: quiz.source_metadata as Record<string, unknown> | null,
           doi: quiz.doi,
           share_token: quiz.share_token,
+          attempts: as.attempts,
+          correct: as.correct,
+          incorrect: as.incorrect,
+          certain: as.certain,
+          medium: as.medium,
+          uncertain: as.uncertain,
+          thumbs_up: vs.up,
+          thumbs_down: vs.down,
+          comment_count: commentCountMap[q.id] || 0,
         };
       });
 
@@ -170,9 +239,13 @@ export default async function AdminPage({ searchParams }: Props) {
       allQuestions.sort((a, b) => {
         let cmp = 0;
         if (sort === 'educator') cmp = a.educator_email.localeCompare(b.educator_email);
-        else if (sort === 'organ_systems') cmp = (a.organ_systems[0] || '').localeCompare(b.organ_systems[0] || '');
-        else if (sort === 'disciplines') cmp = (a.disciplines[0] || '').localeCompare(b.disciplines[0] || '');
-        else if (sort === 'physician_tasks') cmp = (a.physician_tasks[0] || '').localeCompare(b.physician_tasks[0] || '');
+        else if (sort === 'topic') cmp = a.topic.localeCompare(b.topic);
+        else if (sort === 'attempts') cmp = a.attempts - b.attempts;
+        else if (sort === 'correct') cmp = a.correct - b.correct;
+        else if (sort === 'incorrect') cmp = a.incorrect - b.incorrect;
+        else if (sort === 'thumbs_up') cmp = a.thumbs_up - b.thumbs_up;
+        else if (sort === 'thumbs_down') cmp = a.thumbs_down - b.thumbs_down;
+        else if (sort === 'comments') cmp = a.comment_count - b.comment_count;
         else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         return dir === 'asc' ? cmp : -cmp;
       });
@@ -273,26 +346,33 @@ export default async function AdminPage({ searchParams }: Props) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <th className="px-4 py-3 min-w-[250px]">Question</th>
-                  <th className="px-4 py-3">
-                    <Link href={sortUrl('organ_systems')}>Organ Systems{sortIndicator('organ_systems')}</Link>
-                  </th>
-                  <th className="px-4 py-3">
-                    <Link href={sortUrl('physician_tasks')}>Tasks{sortIndicator('physician_tasks')}</Link>
-                  </th>
-                  <th className="px-4 py-3">
-                    <Link href={sortUrl('disciplines')}>Disciplines{sortIndicator('disciplines')}</Link>
+                  <th className="px-4 py-3 min-w-[60px]">ID</th>
+                  <th className="px-4 py-3 min-w-[200px]">
+                    <Link href={sortUrl('topic')}>Topic{sortIndicator('topic')}</Link>
                   </th>
                   <th className="px-4 py-3">
                     <Link href={sortUrl('educator')}>Creator{sortIndicator('educator')}</Link>
                   </th>
-                  <th className="px-4 py-3">Article / Source</th>
-                  <th className="px-4 py-3">Authors</th>
-                  <th className="px-4 py-3">Journal</th>
-                  <th className="px-4 py-3">Year</th>
-                  <th className="px-4 py-3">DOI</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Share Link</th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('attempts')}>Taken{sortIndicator('attempts')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('correct')}>Correct{sortIndicator('correct')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('incorrect')}>Wrong{sortIndicator('incorrect')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">Certainty</th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('thumbs_up')}>👍{sortIndicator('thumbs_up')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('thumbs_down')}>👎{sortIndicator('thumbs_down')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('comments')}>💬{sortIndicator('comments')}</Link>
+                  </th>
+                  <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">
                     <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
                   </th>
@@ -300,21 +380,16 @@ export default async function AdminPage({ searchParams }: Props) {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {allQuestions.map((q) => {
-                  const meta = q.source_metadata as { article_title?: string; authors?: { family: string; given: string }[]; journal_title?: string; journal_abbreviation?: string; year?: number; doi?: string; document_type?: string } | null;
-                  const doi = meta?.doi || q.doi;
+                  const meta = q.source_metadata as { article_title?: string; authors?: { family: string; given: string }[]; journal_abbreviation?: string; year?: number; doi?: string } | null;
+                  const pctCorrect = q.attempts > 0 ? Math.round((q.correct / q.attempts) * 100) : null;
                   return (
                   <tr key={q.id} className="hover:bg-gray-50 align-top">
+                    <td className="px-4 py-3 text-xs text-gray-400 font-mono whitespace-nowrap" title={q.id}>
+                      {q.id.slice(0, 8)}
+                    </td>
                     <td className="px-4 py-3 text-gray-800 max-w-xs">
-                      <p className="line-clamp-2">{q.question_text}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <CategoryBadges items={q.organ_systems} type="organ" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <CategoryBadges items={q.physician_tasks} type="task" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <CategoryBadges items={q.disciplines} type="discipline" />
+                      <p className="font-medium text-sm">{q.topic || '—'}</p>
+                      <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{q.question_text}</p>
                     </td>
                     <td className="px-4 py-3">
                       <Link
@@ -324,41 +399,47 @@ export default async function AdminPage({ searchParams }: Props) {
                         {q.educator_name || q.educator_email}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-600 max-w-[250px]">
-                      <p className="line-clamp-2">{meta?.article_title || q.source_reference || q.source_filename || '—'}</p>
+                    <td className="px-4 py-3 text-right font-medium text-gray-700">
+                      {q.attempts || '—'}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                      {meta?.authors?.length
-                        ? meta.authors.map((a) => a.family).join(', ')
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[140px] truncate">
-                      {meta?.journal_abbreviation || meta?.journal_title || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                      {meta?.year || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[150px] truncate">
-                      {doi ? (
-                        <a href={`https://doi.org/${doi}`} target="_blank" rel="noopener noreferrer" className="text-brand-mid hover:underline">{doi}</a>
+                    <td className="px-4 py-3 text-right">
+                      {q.attempts > 0 ? (
+                        <span className="text-correct-dark font-medium">
+                          {q.correct} <span className="text-gray-400 font-normal text-xs">({pctCorrect}%)</span>
+                        </span>
                       ) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                      {meta?.document_type === 'journal_article' ? 'Article' : meta?.document_type === 'manuscript' ? 'Manuscript' : '—'}
+                    <td className="px-4 py-3 text-right">
+                      {q.attempts > 0 ? (
+                        <span className="text-wrong-dark font-medium">
+                          {q.incorrect}
+                        </span>
+                      ) : '—'}
                     </td>
-                    <td className="px-4 py-3 text-xs">
-                      {q.share_token ? (
-                        <a
-                          href={`/q/${q.share_token}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-mid hover:underline"
-                        >
-                          /q/{q.share_token.slice(0, 8)}...
-                        </a>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
+                    <td className="px-4 py-3 text-right text-xs whitespace-nowrap">
+                      {q.attempts > 0 ? (
+                        <span className="flex items-center justify-end gap-1.5">
+                          <span className="text-emerald-600" title="Certain">{q.certain}</span>
+                          <span className="text-gray-300">/</span>
+                          <span className="text-amber-600" title="Medium">{q.medium}</span>
+                          <span className="text-gray-300">/</span>
+                          <span className="text-red-600" title="Uncertain">{q.uncertain}</span>
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-correct-dark font-medium">
+                      {q.thumbs_up || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-wrong-dark font-medium">
+                      {q.thumbs_down || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-600 font-medium">
+                      {q.comment_count || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px]">
+                      <p className="truncate" title={meta?.article_title || q.source_filename || ''}>
+                        {meta?.authors?.[0]?.family ? `${meta.authors[0].family} ` : ''}{meta?.year || ''}{meta?.journal_abbreviation ? `, ${meta.journal_abbreviation}` : ''}
+                      </p>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                       {new Date(q.created_at).toLocaleDateString()}
@@ -368,7 +449,7 @@ export default async function AdminPage({ searchParams }: Props) {
                 })}
                 {allQuestions.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={12} className="px-4 py-8 text-center text-gray-400">
                       No questions generated yet.
                     </td>
                   </tr>
