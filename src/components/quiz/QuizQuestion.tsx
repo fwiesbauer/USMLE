@@ -38,6 +38,7 @@ export function QuizQuestion({
   const [certainty, setCertainty] = useState<CertaintyLevel | null>(null);
   const [reveal, setReveal] = useState<RevealResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Voting state
   const [thumbsUp, setThumbsUp] = useState(0);
@@ -92,12 +93,15 @@ export function QuizQuestion({
   const handleCertaintySelect = async (level: CertaintyLevel) => {
     if (!selectedAnswer || loading) return;
     setCertainty(level);
+    setSubmitError(null);
     setLoading(true);
 
     try {
       const result = await onAnswer(question.id, selectedAnswer, level);
       setReveal(result);
-    } catch {
+    } catch (err) {
+      console.error('Answer submission failed:', err);
+      setSubmitError('Failed to submit answer. Please try again.');
       setSelectedAnswer(null);
       setCertainty(null);
     } finally {
@@ -284,6 +288,13 @@ export function QuizQuestion({
       {loading && (
         <div className="text-center text-gray-500 text-sm">
           Checking answer...
+        </div>
+      )}
+
+      {/* Error state */}
+      {submitError && (
+        <div className="text-center text-red-600 text-sm mb-4">
+          {submitError}
         </div>
       )}
 
