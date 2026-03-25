@@ -42,6 +42,10 @@ Run the SQL migrations in order against your Supabase database. Go to the **SQL 
 00008_add_educator_role.sql    — Admin role column on educators
 00009_add_source_metadata.sql  — Structured metadata JSONB + suggested filename
 00010_add_pmid_pmcid_columns.sql — Dedicated PMID/PMCID columns
+00011_add_question_attempts.sql — Learner answer tracking with certainty levels
+00012_add_quiz_sessions.sql    — Quiz session tracking + session_id on attempts
+00013_link_votes_comments_to_attempts.sql — Link votes/comments to specific attempts
+00014_fix_corrupted_dois.sql   — Clean corrupted DOI values in existing records
 ```
 
 Run them **in numerical order** — each migration builds on the previous one.

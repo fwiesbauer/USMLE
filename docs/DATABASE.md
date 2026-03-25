@@ -13,16 +13,19 @@ educators
     │
     │ 1:many
     ▼
-quizzes
+quizzes ──────────────────────┐
+    │                         │
+    │ 1:many                  │ 1:many
+    ▼                         ▼
+questions ─────┐        quiz_sessions
+    │          │
+    │ 1:many   │ 1:many
+    ▼          ▼
+question_   question_
+attempts    attempts
     │
-    │ 1:many
-    ▼
-questions ──────┬──────────────┐
-    │           │              │
-    │ 1:many    │ 1:many       │
-    ▼           ▼              │
-question_    question_         │
-comments     votes             │
+    ├── question_comments (via attempt_id)
+    └── question_votes   (via attempt_id)
 ```
 
 ## Tables
@@ -120,6 +123,7 @@ The `source_metadata` column stores structured bibliographic data extracted from
 | `question_id` | UUID | NOT NULL, FK → questions (CASCADE) | |
 | `commenter_name` | TEXT | nullable | Optional name (anonymous if null) |
 | `comment_text` | TEXT | NOT NULL | The comment content |
+| `attempt_id` | UUID | nullable, FK → question_attempts (SET NULL) | Links comment to a specific attempt |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
 
 ### `question_votes`
@@ -130,8 +134,40 @@ The `source_metadata` column stores structured bibliographic data extracted from
 | `question_id` | UUID | NOT NULL, FK → questions (CASCADE) | |
 | `visitor_id` | TEXT | NOT NULL | Browser-generated anonymous ID |
 | `vote` | SMALLINT | NOT NULL, CHECK (vote IN (-1, 1)) | -1 = thumbs down, 1 = thumbs up |
+| `attempt_id` | UUID | nullable, FK → question_attempts (SET NULL) | Links vote to a specific attempt |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
 | | | UNIQUE(question_id, visitor_id) | One vote per visitor per question |
+
+### `question_attempts`
+
+Stores every answer attempt by a learner. This is the central analytics table — votes and comments can be linked back via `attempt_id`.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `question_id` | UUID | NOT NULL, FK → questions (CASCADE) | |
+| `quiz_id` | UUID | NOT NULL, FK → quizzes (CASCADE) | |
+| `session_id` | UUID | nullable, FK → quiz_sessions (SET NULL) | Links to the quiz session |
+| `visitor_id` | TEXT | nullable | Browser fingerprint |
+| `selected_answer` | TEXT | NOT NULL | Letter selected (A–E) |
+| `is_correct` | BOOLEAN | NOT NULL | Whether the answer was correct |
+| `certainty` | TEXT | nullable, CHECK IN ('certain','medium','uncertain') | Learner's self-assessed certainty |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
+
+### `quiz_sessions`
+
+Tracks each quiz take as a unit — one row per visitor per quiz start. Enables "how many times was this quiz taken?" and abandonment tracking.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `quiz_id` | UUID | NOT NULL, FK → quizzes (CASCADE) | |
+| `visitor_id` | TEXT | nullable | Browser fingerprint |
+| `started_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |
+| `completed_at` | TIMESTAMPTZ | nullable | Set when learner sees results (null = abandoned) |
+| `total_questions` | INT | nullable | Total questions in the quiz |
+| `correct_count` | INT | nullable | Number answered correctly |
+| `score_percent` | INT | nullable | Final score percentage |
 
 ### `site_feedback`
 
@@ -160,6 +196,14 @@ General site feedback submitted by educators via the floating feedback widget.
 | `idx_questions_disciplines` | questions | disciplines | GIN |
 | `idx_question_comments_question_id` | question_comments | question_id | B-tree |
 | `idx_question_votes_question_id` | question_votes | question_id | B-tree |
+| `idx_question_votes_attempt` | question_votes | attempt_id | B-tree |
+| `idx_question_comments_attempt` | question_comments | attempt_id | B-tree |
+| `idx_question_attempts_quiz` | question_attempts | quiz_id | B-tree |
+| `idx_question_attempts_question` | question_attempts | question_id | B-tree |
+| `idx_question_attempts_visitor` | question_attempts | visitor_id | B-tree |
+| `idx_question_attempts_session` | question_attempts | session_id | B-tree |
+| `idx_quiz_sessions_quiz` | quiz_sessions | quiz_id | B-tree |
+| `idx_quiz_sessions_visitor` | quiz_sessions | visitor_id | B-tree |
 | `idx_site_feedback_created_at` | site_feedback | created_at DESC | B-tree |
 | `idx_site_feedback_type` | site_feedback | feedback_type | B-tree |
 | `idx_site_feedback_educator_id` | site_feedback | educator_id | B-tree |
@@ -202,6 +246,21 @@ All core tables have RLS enabled. Policies ensure data isolation between educato
 
 Educators can only insert feedback for themselves. No SELECT/UPDATE/DELETE policies — feedback is write-only from the educator's perspective.
 
+### `question_attempts`
+
+| Policy | Operation | Rule |
+|--------|-----------|------|
+| `Anyone can insert attempts` | INSERT | `true` (public) |
+| `Educators can read attempts for own quizzes` | SELECT | `quiz_id IN (SELECT id FROM quizzes WHERE educator_id = auth.uid())` |
+
+### `quiz_sessions`
+
+| Policy | Operation | Rule |
+|--------|-----------|------|
+| `Anyone can insert sessions` | INSERT | `true` (public) |
+| `Anyone can update sessions` | UPDATE | `true` (public) |
+| `Educators can read sessions for own quizzes` | SELECT | `quiz_id IN (SELECT id FROM quizzes WHERE educator_id = auth.uid())` |
+
 ### `question_comments` and `question_votes`
 
 These tables do **not** have RLS policies because they are accessed via the **service role client** in public API routes. The service role bypasses RLS entirely. This is intentional — learners are anonymous and have no auth session.
@@ -243,3 +302,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | 8 | `00008_add_educator_role.sql` | Adds `role` column to educators (`educator` or `admin`) |
 | 9 | `00009_add_source_metadata.sql` | Adds `source_metadata` (JSONB) and `suggested_filename` columns to quizzes |
 | 10 | `00010_add_pmid_pmcid_columns.sql` | Adds dedicated `pmid` and `pmcid` TEXT columns to quizzes |
+| 11 | `00011_add_question_attempts.sql` | Creates `question_attempts` table for learner answer tracking with certainty |
+| 12 | `00012_add_quiz_sessions.sql` | Creates `quiz_sessions` table and adds `session_id` to question_attempts |
+| 13 | `00013_link_votes_comments_to_attempts.sql` | Adds `attempt_id` FK to question_votes and question_comments |
+| 14 | `00014_fix_corrupted_dois.sql` | Cleans DOI values with concatenated URLs in existing records |
