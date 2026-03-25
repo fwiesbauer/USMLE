@@ -48,6 +48,8 @@ export interface Quiz {
   source_filename: string;
   source_reference?: string;
   doi?: string;
+  pmid?: string;
+  pmcid?: string;
   source_metadata?: SourceMetadata | null;
   suggested_filename?: string | null;
   status: 'draft' | 'generating' | 'review' | 'published';
@@ -78,6 +80,8 @@ export interface RevealResponse {
   section: string;
   source_reference: string;
   doi: string;
+  pmid: string;
+  pmcid: string;
 }
 
 /** Comment on a question */

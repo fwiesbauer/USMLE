@@ -6,6 +6,8 @@ const UpdateQuizSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   source_reference: z.string().optional(),
   doi: z.string().optional(),
+  pmid: z.string().optional(),
+  pmcid: z.string().optional(),
 });
 
 export async function GET(

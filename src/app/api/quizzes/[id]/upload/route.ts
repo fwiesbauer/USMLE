@@ -63,6 +63,8 @@ export async function POST(
     // Try to extract structured bibliographic metadata using Haiku (non-blocking)
     let sourceReference: string | null = null;
     let doi: string | null = null;
+    let pmid: string | null = null;
+    let pmcid: string | null = null;
     let sourceMetadata: SourceMetadata | null = null;
     let suggestedFilename: string | null = null;
     try {
@@ -79,6 +81,8 @@ export async function POST(
         const result = await extractSourceReference(extraction.text, apiKey, provider);
         sourceReference = result.reference;
         doi = result.doi || null;
+        pmid = result.metadata.pmid || null;
+        pmcid = result.metadata.pmcid || null;
         sourceMetadata = result.metadata;
         suggestedFilename = result.metadata.suggested_filename || null;
       }
@@ -91,8 +95,10 @@ export async function POST(
     if (sourceMetadata) {
       try {
         sourceMetadata = await enrichSourceMetadata(sourceMetadata);
-        // Update DOI in case enrichment discovered or confirmed it
+        // Update identifiers in case enrichment discovered or confirmed them
         if (sourceMetadata.doi && !doi) doi = sourceMetadata.doi;
+        if (sourceMetadata.pmid && !pmid) pmid = sourceMetadata.pmid;
+        if (sourceMetadata.pmcid && !pmcid) pmcid = sourceMetadata.pmcid;
       } catch {
         // Non-fatal — enrichment is best-effort
       }
@@ -126,6 +132,8 @@ export async function POST(
         pdf_storage_path: storagePath,
         ...(sourceReference ? { source_reference: sourceReference } : {}),
         ...(doi ? { doi } : {}),
+        ...(pmid ? { pmid } : {}),
+        ...(pmcid ? { pmcid } : {}),
       })
       .eq('id', params.id);
 
@@ -158,6 +166,8 @@ export async function POST(
       source_metadata: sourceMetadata,
       suggested_filename: suggestedFilename,
       doi,
+      pmid,
+      pmcid,
       word_count: extraction.wordCount,
       page_count: extraction.pageCount,
       warning: extraction.warning,

@@ -16,7 +16,7 @@ export async function POST(
   // Verify the quiz is published with this token
   const { data: quiz, error: quizError } = await supabase
     .from('quizzes')
-    .select('id, source_reference, doi')
+    .select('id, source_reference, doi, pmid, pmcid')
     .eq('share_token', params.token)
     .eq('status', 'published')
     .single();
@@ -65,5 +65,7 @@ export async function POST(
     section: question.section || '',
     source_reference: quiz.source_reference || '',
     doi: quiz.doi || '',
+    pmid: quiz.pmid || '',
+    pmcid: quiz.pmcid || '',
   });
 }

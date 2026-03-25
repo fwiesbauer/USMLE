@@ -9,7 +9,7 @@ export async function GET(
 
   const { data: quiz, error } = await supabase
     .from('quizzes')
-    .select('id, title, source_filename, source_reference, doi, question_count_requested, status, share_token')
+    .select('id, title, source_filename, source_reference, doi, pmid, pmcid, question_count_requested, status, share_token')
     .eq('share_token', params.token)
     .eq('status', 'published')
     .single();
@@ -34,6 +34,8 @@ export async function GET(
     source_filename: quiz.source_filename,
     source_reference: quiz.source_reference,
     doi: quiz.doi,
+    pmid: quiz.pmid,
+    pmcid: quiz.pmcid,
     question_count: questions?.length ?? 0,
     questions: questions ?? [],
   });

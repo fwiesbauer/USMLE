@@ -92,6 +92,8 @@ export async function POST(
     ]);
     const sourceReference = refResult?.reference || null;
     let doi = refResult?.doi || null;
+    let pmid = refResult?.metadata?.pmid || null;
+    let pmcid = refResult?.metadata?.pmcid || null;
     let sourceMetadata = refResult?.metadata || null;
     const suggestedFilename = refResult?.metadata?.suggested_filename || null;
 
@@ -101,6 +103,8 @@ export async function POST(
       try {
         sourceMetadata = await enrichSourceMetadata(sourceMetadata);
         if (sourceMetadata.doi && !doi) doi = sourceMetadata.doi;
+        if (sourceMetadata.pmid && !pmid) pmid = sourceMetadata.pmid;
+        if (sourceMetadata.pmcid && !pmcid) pmcid = sourceMetadata.pmcid;
       } catch {
         // Non-fatal — enrichment is best-effort
       }
@@ -147,6 +151,8 @@ export async function POST(
         status: 'review',
         ...(sourceReference ? { source_reference: sourceReference } : {}),
         ...(doi ? { doi } : {}),
+        ...(pmid ? { pmid } : {}),
+        ...(pmcid ? { pmcid } : {}),
       })
       .eq('id', params.id);
 
