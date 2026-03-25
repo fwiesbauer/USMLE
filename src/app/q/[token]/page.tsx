@@ -20,7 +20,9 @@ import type {
   RevealResponse,
   LearnerProgress,
   QuestionAttempt,
+  CertaintyLevel,
 } from '@/types/quiz';
+import { getVisitorId } from '@/lib/visitor';
 
 type Screen = 'welcome' | 'quiz' | 'results' | 'retry';
 
@@ -94,11 +96,17 @@ export default function LearnerQuizPage() {
   }, [token, handleStart]);
 
   const handleAnswer = useCallback(
-    async (questionId: string, selectedAnswer: string): Promise<RevealResponse> => {
+    async (questionId: string, selectedAnswer: string, certainty: CertaintyLevel): Promise<RevealResponse> => {
+      const visitorId = getVisitorId();
       const res = await fetch(`/api/public/quizzes/${token}/reveal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question_id: questionId, selected_answer: selectedAnswer }),
+        body: JSON.stringify({
+          question_id: questionId,
+          selected_answer: selectedAnswer,
+          certainty,
+          visitor_id: visitorId,
+        }),
       });
 
       if (!res.ok) {
@@ -111,6 +119,7 @@ export default function LearnerQuizPage() {
         question_id: questionId,
         selected_answer: selectedAnswer,
         is_correct: reveal.is_correct,
+        certainty,
         attempted_at: new Date().toISOString(),
       };
 
