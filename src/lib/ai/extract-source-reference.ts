@@ -148,7 +148,7 @@ ${excerpt}`;
     volume: raw.volume || null,
     issue: raw.issue || null,
     pages: raw.pages || null,
-    doi: raw.doi || regexDoi || null,
+    doi: raw.doi ? cleanDoi(raw.doi) : regexDoi || null,
     pmid: regexPmid || raw.pmid || null,
     pmcid: regexPmcid || raw.pmcid || null,
     issn: raw.issn || null,
@@ -203,11 +203,25 @@ export function extractDoiFromText(text: string): string {
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match?.[1]) {
-      return match[1].replace(/[.)]+$/, '');
+      return cleanDoi(match[1]);
     }
   }
 
   return '';
+}
+
+/**
+ * Sanitise a raw DOI string.
+ * PDF text often concatenates a DOI with the next URL on the same line
+ * (e.g. "10.3390/jpm14070741https://www.mdpi.com/journal/jpm").
+ * This strips trailing URLs and punctuation so only the DOI remains.
+ */
+function cleanDoi(raw: string): string {
+  // Cut off anything starting with "http" that got concatenated
+  let cleaned = raw.replace(/https?:\/\/.*$/, '');
+  // Remove trailing punctuation that is not part of a DOI
+  cleaned = cleaned.replace(/[.)]+$/, '');
+  return cleaned;
 }
 
 /**
