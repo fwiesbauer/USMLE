@@ -21,7 +21,7 @@
  */
 
 import type { SourceMetadata } from '@/lib/ai/extract-source-reference';
-import { lookupByPmid, findPmidByDoi, findIdsByDoi, type PubMedResult } from './pubmed';
+import { lookupByPmid, findPmidByDoi, findIdsByDoi, findPmidByTitle, type PubMedResult } from './pubmed';
 import { lookupByDoi, type CrossrefResult } from './crossref';
 
 /**
@@ -75,11 +75,21 @@ export async function enrichSourceMetadata(
       if (idConvResult.pmid) enriched.pmid = idConvResult.pmid;
       if (idConvResult.pmcid) enriched.pmcid = idConvResult.pmcid;
 
-      // B3: If we have a PMID (from ID Converter or fallback ESearch), get MeSH terms & keywords
+      // B3: If we have a PMID (from ID Converter or fallback ESearch or title search), get MeSH terms & keywords
       let discoveredPmid = idConvResult.pmid;
       if (!discoveredPmid) {
         discoveredPmid = await findPmidByDoi(doi);
         if (discoveredPmid) enriched.pmid = discoveredPmid;
+      }
+      // B3b: Final fallback — search PubMed by title if DOI-based lookups failed
+      if (!discoveredPmid && enriched.article_title) {
+        console.log('[enrich] Path B fallback: searching PubMed by title');
+        const firstAuthor = enriched.authors?.[0]?.family || undefined;
+        discoveredPmid = await findPmidByTitle(enriched.article_title, firstAuthor);
+        if (discoveredPmid) {
+          console.log('[enrich] Path B fallback: found PMID by title:', discoveredPmid);
+          enriched.pmid = discoveredPmid;
+        }
       }
 
       if (discoveredPmid) {
@@ -94,9 +104,29 @@ export async function enrichSourceMetadata(
     }
 
     // ------------------------------------------------------------------
-    // Path C: Neither PMID nor DOI — nothing to look up
+    // Path C: No PMID, no DOI, but we have a title — search PubMed by title
     // ------------------------------------------------------------------
-    console.log('[enrich] Path C: no DOI and no PMID — skipping enrichment');
+    if (enriched.article_title) {
+      console.log('[enrich] Path C: searching PubMed by title:', enriched.article_title);
+      const firstAuthor = enriched.authors?.[0]?.family || undefined;
+      const titlePmid = await findPmidByTitle(enriched.article_title, firstAuthor);
+      if (titlePmid) {
+        console.log('[enrich] Path C: found PMID by title:', titlePmid);
+        enriched.pmid = titlePmid;
+        const pubmed = await lookupByPmid(titlePmid);
+        if (pubmed) {
+          applyPubMed(enriched, pubmed);
+        }
+      } else {
+        console.log('[enrich] Path C: title search returned no confident match');
+      }
+      return enriched;
+    }
+
+    // ------------------------------------------------------------------
+    // Path D: Nothing to look up at all
+    // ------------------------------------------------------------------
+    console.log('[enrich] Path D: no DOI, no PMID, no title — skipping enrichment');
     return enriched;
   } catch (err) {
     // Absolute safety net: if anything unexpected happens, return

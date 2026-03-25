@@ -166,6 +166,52 @@ export async function findIdsByDoi(doi: string): Promise<{ pmid: string | null; 
   }
 }
 
+/**
+ * Search PubMed by article title (and optionally first author) to find a PMID.
+ * This is a reliable fallback when DOI-based lookups fail.
+ * Returns the PMID string if a confident match is found, or null.
+ */
+export async function findPmidByTitle(
+  title: string,
+  firstAuthor?: string
+): Promise<string | null> {
+  if (!title || title.length < 10) return null;
+
+  try {
+    // Build a PubMed search query: title in [ti] field, optionally with author
+    let query = `${title}[ti]`;
+    if (firstAuthor) {
+      query += ` AND ${firstAuthor}[au]`;
+    }
+
+    const searchUrl = `${ESEARCH_URL}?db=pubmed&term=${encodeURIComponent(query)}&retmode=json&retmax=3`;
+    console.log('[pubmed] Title search:', searchUrl);
+    const resp = await fetchWithTimeout(searchUrl);
+    console.log('[pubmed] Title search response status:', resp.status);
+    if (!resp.ok) return null;
+
+    const json = await resp.json();
+    const ids: string[] = json?.esearchresult?.idlist || [];
+    const count = parseInt(json?.esearchresult?.count || '0', 10);
+    console.log('[pubmed] Title search found', count, 'results, IDs:', ids);
+
+    // Only use the result if we got exactly 1 match (high confidence)
+    // or if we got a small number with author filter
+    if (ids.length === 1) {
+      return ids[0];
+    }
+    if (ids.length > 1 && ids.length <= 3 && firstAuthor) {
+      // Multiple results but we had author filter — take the first
+      return ids[0];
+    }
+
+    return null;
+  } catch (err) {
+    console.error('[pubmed] Title search error:', err);
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
