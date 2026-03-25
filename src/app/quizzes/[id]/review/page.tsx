@@ -259,8 +259,7 @@ export default function ReviewPage() {
       ? refParts.join('. ').replace(/\.\./g, '.') + (quiz.doi ? `. doi:${quiz.doi}` : '')
       : '';
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
     if (titleDraft.trim() && titleDraft.trim() !== quiz.title) {
       updates.title = titleDraft.trim();
     }
