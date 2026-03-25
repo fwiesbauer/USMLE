@@ -85,23 +85,28 @@ export async function POST(
         pmcid = result.metadata.pmcid || null;
         sourceMetadata = result.metadata;
         suggestedFilename = result.metadata.suggested_filename || null;
+        console.log('[upload] After LLM extraction — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
       }
-    } catch {
-      // Non-fatal — citation extraction is best-effort
+    } catch (err) {
+      console.error('[upload] Citation extraction failed:', err);
     }
 
     // Best-effort enrichment: fill in PMID, PMCID, keywords, etc. from
     // PubMed / Crossref. If it fails, sourceMetadata stays as-is.
     if (sourceMetadata) {
       try {
+        console.log('[upload] Starting enrichment with DOI:', sourceMetadata.doi);
         sourceMetadata = await enrichSourceMetadata(sourceMetadata);
         // Update identifiers in case enrichment discovered or confirmed them
         if (sourceMetadata.doi && !doi) doi = sourceMetadata.doi;
         if (sourceMetadata.pmid && !pmid) pmid = sourceMetadata.pmid;
         if (sourceMetadata.pmcid && !pmcid) pmcid = sourceMetadata.pmcid;
-      } catch {
-        // Non-fatal — enrichment is best-effort
+        console.log('[upload] After enrichment — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
+      } catch (err) {
+        console.error('[upload] Enrichment failed:', err);
       }
+    } else {
+      console.log('[upload] No sourceMetadata — skipping enrichment');
     }
 
     // Use the AI-suggested filename when available; fall back to the original upload name

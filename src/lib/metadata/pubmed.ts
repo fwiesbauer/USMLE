@@ -105,13 +105,17 @@ export async function findPmidByDoi(doi: string): Promise<string | null> {
 
   try {
     const searchUrl = `${ESEARCH_URL}?db=pubmed&term=${encodeURIComponent(doi)}[doi]&retmode=json`;
+    console.log('[pubmed] Searching PubMed by DOI:', searchUrl);
     const resp = await fetchWithTimeout(searchUrl);
+    console.log('[pubmed] Search response status:', resp.status);
     if (!resp.ok) return null;
 
     const json = await resp.json();
     const ids: string[] = json?.esearchresult?.idlist || [];
+    console.log('[pubmed] Found PMIDs:', ids);
     return ids.length > 0 ? ids[0] : null;
-  } catch {
+  } catch (err) {
+    console.error('[pubmed] findPmidByDoi error:', err);
     return null;
   }
 }

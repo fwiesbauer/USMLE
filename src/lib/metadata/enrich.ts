@@ -40,11 +40,15 @@ export async function enrichSourceMetadata(
     const pmid = enriched.pmid || null;
     const doi = enriched.doi || null;
 
+    console.log('[enrich] Starting enrichment. DOI:', doi, 'PMID:', pmid);
+
     // ------------------------------------------------------------------
     // Path A: We already have a PMID → go straight to PubMed
     // ------------------------------------------------------------------
     if (pmid) {
+      console.log('[enrich] Path A: looking up PMID', pmid);
       const pubmed = await lookupByPmid(pmid);
+      console.log('[enrich] PubMed result:', pubmed ? 'found' : 'not found', 'PMCID:', pubmed?.pmcid);
       if (pubmed) {
         applyPubMed(enriched, pubmed);
       }
@@ -56,18 +60,22 @@ export async function enrichSourceMetadata(
     // ------------------------------------------------------------------
     if (doi) {
       // B1: Crossref for bibliographic data
+      console.log('[enrich] Path B: looking up DOI', doi);
       const crossref = await lookupByDoi(doi);
+      console.log('[enrich] Crossref result:', crossref ? 'found' : 'not found');
       if (crossref) {
         applyCrossref(enriched, crossref);
       }
 
       // B2: Try to discover a PMID via PubMed search-by-DOI
       const discoveredPmid = await findPmidByDoi(doi);
+      console.log('[enrich] PubMed DOI search result: PMID =', discoveredPmid);
       if (discoveredPmid) {
         enriched.pmid = discoveredPmid;
 
         // B3: Now that we have a PMID, get MeSH terms & keywords
         const pubmed = await lookupByPmid(discoveredPmid);
+        console.log('[enrich] PubMed lookup result:', pubmed ? 'found' : 'not found', 'PMCID:', pubmed?.pmcid);
         if (pubmed) {
           applyPubMed(enriched, pubmed);
         }
@@ -79,10 +87,12 @@ export async function enrichSourceMetadata(
     // ------------------------------------------------------------------
     // Path C: Neither PMID nor DOI — nothing to look up
     // ------------------------------------------------------------------
+    console.log('[enrich] Path C: no DOI and no PMID — skipping enrichment');
     return enriched;
-  } catch {
+  } catch (err) {
     // Absolute safety net: if anything unexpected happens, return
     // the original metadata so the pipeline is never disrupted.
+    console.error('[enrich] Enrichment failed with error:', err);
     return metadata;
   }
 }
