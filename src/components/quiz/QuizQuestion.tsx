@@ -357,40 +357,30 @@ export function QuizQuestion({
             </div>
           )}
 
-          {/* Source reference with DOI link */}
-          {(reveal.source_reference || reveal.section) && (
+          {/* Source reference and DOI */}
+          {(reveal.source_reference || reveal.section || doiUrl) && (
             <div className="border-t border-gray-200 pt-3 space-y-1">
               {reveal.source_reference && (
                 <p className="text-xs text-gray-500">
-                  {doiUrl ? (
-                    <a
-                      href={doiUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-mid hover:text-brand-dark underline"
-                    >
-                      {reveal.source_reference.replace(/^\d+\.\s*/, '')}
-                    </a>
-                  ) : (
-                    <span>{reveal.source_reference.replace(/^\d+\.\s*/, '')}</span>
-                  )}
+                  {reveal.source_reference.replace(/^\d+\.\s*/, '')}
                 </p>
               )}
               {reveal.section && (
                 <p className="text-xs text-gray-500">
                   <span className="font-medium">Document section:</span>{' '}
-                  {doiUrl ? (
-                    <a
-                      href={doiUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-mid hover:text-brand-dark underline"
-                    >
-                      {reveal.section}
-                    </a>
-                  ) : (
-                    <span>{reveal.section}</span>
-                  )}
+                  {reveal.section}
+                </p>
+              )}
+              {doiUrl && (
+                <p className="text-xs">
+                  <a
+                    href={doiUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-mid hover:text-brand-dark underline"
+                  >
+                    {doiUrl}
+                  </a>
                 </p>
               )}
             </div>
@@ -431,9 +421,10 @@ export function QuizQuestion({
           <div className="border-t border-gray-200 pt-3">
             <button
               onClick={() => setShowComments(!showComments)}
-              className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md px-3 py-1.5 hover:bg-gray-50 transition-colors"
             >
-              {showComments ? 'Hide' : 'Show'} Comments{comments.length > 0 ? ` (${comments.length})` : ''}
+              <span>💬</span>
+              {showComments ? 'Hide comments' : 'Show & leave comments'}{comments.length > 0 ? ` (${comments.length})` : ''}
             </button>
 
             {showComments && (
