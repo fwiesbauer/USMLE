@@ -5,6 +5,9 @@ import { enrichSourceMetadata } from '@/lib/metadata/enrich';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
+// Allow up to 60s for PDF processing + enrichment (Vercel Hobby max)
+export const maxDuration = 60;
+
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 export async function POST(
