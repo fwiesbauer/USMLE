@@ -5,6 +5,8 @@ import { z } from 'zod';
 const RevealSchema = z.object({
   question_id: z.string().uuid(),
   selected_answer: z.string().min(1).max(1),
+  certainty: z.enum(['certain', 'medium', 'uncertain']).optional(),
+  visitor_id: z.string().optional(),
 });
 
 export async function POST(
@@ -55,6 +57,19 @@ export async function POST(
 
   const isCorrect =
     parsed.data.selected_answer === question.correct_answer;
+
+  // Store the attempt in the database (fire-and-forget, don't block response)
+  supabase
+    .from('question_attempts')
+    .insert({
+      question_id: parsed.data.question_id,
+      quiz_id: quiz.id,
+      visitor_id: parsed.data.visitor_id || null,
+      selected_answer: parsed.data.selected_answer,
+      is_correct: isCorrect,
+      certainty: parsed.data.certainty || null,
+    })
+    .then(() => {});
 
   return NextResponse.json({
     correct_answer: question.correct_answer,

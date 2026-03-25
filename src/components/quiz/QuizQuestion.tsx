@@ -4,15 +4,28 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { getVisitorId } from '@/lib/visitor';
-import type { PublicQuestion, QuizOption, RevealResponse, QuestionComment } from '@/types/quiz';
+import type { PublicQuestion, QuizOption, RevealResponse, QuestionComment, CertaintyLevel } from '@/types/quiz';
 
 interface QuizQuestionProps {
   question: PublicQuestion;
   currentIndex: number;
   totalQuestions: number;
-  onAnswer: (questionId: string, selectedAnswer: string) => Promise<RevealResponse>;
+  onAnswer: (questionId: string, selectedAnswer: string, certainty: CertaintyLevel) => Promise<RevealResponse>;
   onNext: () => void;
 }
+
+const CERTAINTY_MESSAGES: Record<string, Record<CertaintyLevel, string>> = {
+  correct: {
+    certain: 'You were certain — and you were right. Strong knowledge.',
+    medium: 'You got it right, but had some doubt. Worth reviewing to build confidence.',
+    uncertain: 'You were uncertain — but you got it right. Could be a lucky guess. Flag this one for review.',
+  },
+  wrong: {
+    certain: 'You were certain — but this was actually wrong. Confident mistakes are the most important ones to address.',
+    medium: 'You had some doubt — and it turned out to be wrong. Review this topic.',
+    uncertain: 'You were uncertain — and you got it wrong. Keep practicing this area.',
+  },
+};
 
 export function QuizQuestion({
   question,
@@ -22,6 +35,7 @@ export function QuizQuestion({
   onNext,
 }: QuizQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [certainty, setCertainty] = useState<CertaintyLevel | null>(null);
   const [reveal, setReveal] = useState<RevealResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -54,8 +68,6 @@ export function QuizQuestion({
     // Check if visitor already voted
     const visitorId = getVisitorId();
     if (visitorId) {
-      // We don't have a separate endpoint to check visitor's vote,
-      // so we store it locally
       const stored = localStorage.getItem(`vote_${question.id}`);
       if (stored === '1') setMyVote(1);
       else if (stored === '-1') setMyVote(-1);
@@ -72,16 +84,22 @@ export function QuizQuestion({
     if (savedName) setCommenterName(savedName);
   }, [reveal, question.id]);
 
-  const handleSelect = async (letter: string) => {
-    if (selectedAnswer) return;
+  const handleSelect = (letter: string) => {
+    if (selectedAnswer || loading) return;
     setSelectedAnswer(letter);
+  };
+
+  const handleCertaintySelect = async (level: CertaintyLevel) => {
+    if (!selectedAnswer || loading) return;
+    setCertainty(level);
     setLoading(true);
 
     try {
-      const result = await onAnswer(question.id, letter);
+      const result = await onAnswer(question.id, selectedAnswer, level);
       setReveal(result);
     } catch {
       setSelectedAnswer(null);
+      setCertainty(null);
     } finally {
       setLoading(false);
     }
@@ -89,7 +107,6 @@ export function QuizQuestion({
 
   const handleVote = async (vote: 1 | -1) => {
     if (votingLoading) return;
-    // If clicking the same vote, do nothing
     if (myVote === vote) return;
 
     setVotingLoading(true);
@@ -148,8 +165,13 @@ export function QuizQuestion({
       return `${base} border-gray-200 hover:border-brand-mid hover:bg-brand-light cursor-pointer`;
     }
 
+    // Answer selected but not yet submitted (no reveal) — highlight selected, dim others
     if (!reveal) {
-      return `${base} border-gray-200 opacity-50 cursor-not-allowed`;
+      const isSelected = option.letter === selectedAnswer;
+      if (isSelected) {
+        return `${base} border-brand-mid bg-brand-light text-brand-dark`;
+      }
+      return `${base} border-gray-200 opacity-50`;
     }
 
     const isSelected = option.letter === selectedAnswer;
@@ -178,6 +200,11 @@ export function QuizQuestion({
   const doiUrl = reveal?.doi
     ? `https://doi.org/${reveal.doi}`
     : (reveal?.source_reference ? extractDoiUrl(reveal.source_reference) : '');
+
+  // Certainty message for the feedback panel
+  const certaintyMessage = reveal && certainty
+    ? CERTAINTY_MESSAGES[reveal.is_correct ? 'correct' : 'wrong'][certainty]
+    : null;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -216,7 +243,7 @@ export function QuizQuestion({
           <button
             key={option.letter}
             onClick={() => handleSelect(option.letter)}
-            disabled={!!selectedAnswer || loading}
+            disabled={!!reveal || loading}
             className={getOptionClass(option)}
           >
             <span className="font-bold mr-2">{option.letter}.</span>
@@ -224,6 +251,33 @@ export function QuizQuestion({
           </button>
         ))}
       </div>
+
+      {/* Certainty buttons — shown after answer selected, before submission */}
+      {selectedAnswer && !reveal && !loading && (
+        <div className="mb-6">
+          <p className="text-sm text-gray-600 mb-3 font-medium">How certain are you?</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleCertaintySelect('certain')}
+              className="flex-1 px-4 py-2.5 rounded-lg border-2 border-emerald-400 bg-emerald-50 text-emerald-700 font-semibold text-sm hover:bg-emerald-100 hover:border-emerald-500 transition-colors"
+            >
+              Certain
+            </button>
+            <button
+              onClick={() => handleCertaintySelect('medium')}
+              className="flex-1 px-4 py-2.5 rounded-lg border-2 border-amber-400 bg-amber-50 text-amber-700 font-semibold text-sm hover:bg-amber-100 hover:border-amber-500 transition-colors"
+            >
+              Medium
+            </button>
+            <button
+              onClick={() => handleCertaintySelect('uncertain')}
+              className="flex-1 px-4 py-2.5 rounded-lg border-2 border-red-400 bg-red-50 text-red-700 font-semibold text-sm hover:bg-red-100 hover:border-red-500 transition-colors"
+            >
+              Uncertain
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Loading state */}
       {loading && (
@@ -235,6 +289,19 @@ export function QuizQuestion({
       {/* Feedback panel */}
       {reveal && (
         <div className="space-y-3">
+          {/* Certainty message */}
+          {certaintyMessage && (
+            <div
+              className={`rounded-lg px-4 py-3 text-sm font-medium ${
+                reveal.is_correct
+                  ? 'bg-correct-fill border border-correct-dark text-correct-dark'
+                  : 'bg-wrong-fill border border-wrong-dark text-wrong-dark'
+              }`}
+            >
+              {certaintyMessage}
+            </div>
+          )}
+
           <div className="bg-blue-50 border-l-4 border-brand-mid rounded-r-lg p-4">
             <p
               className={`font-bold text-lg ${
@@ -259,7 +326,7 @@ export function QuizQuestion({
               <ul className="space-y-1">
                 {reveal.nuggets.map((nugget, i) => (
                   <li key={i} className="text-sm text-amber-900 flex">
-                    <span className="mr-2">•</span>
+                    <span className="mr-2">&bull;</span>
                     <span>{nugget}</span>
                   </li>
                 ))}

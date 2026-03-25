@@ -85,6 +85,8 @@ export interface RevealResponse {
 }
 
 /** Comment on a question */
+export type CertaintyLevel = 'certain' | 'medium' | 'uncertain';
+
 export interface QuestionComment {
   id: string;
   question_id: string;
@@ -114,6 +116,7 @@ export interface QuestionAttempt {
   question_id: string;
   selected_answer: string;
   is_correct: boolean;
+  certainty?: CertaintyLevel;
   attempted_at: string;
 }
 
