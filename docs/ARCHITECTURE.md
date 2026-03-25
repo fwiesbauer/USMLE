@@ -16,7 +16,12 @@ src/
 │   │   │   └── logout/route.ts       # Sign out (server-side, 303 redirect)
 │   │   ├── feedback/route.ts         # Submit site feedback (educator only)
 │   │   ├── public/
-│   │   │   ├── quizzes/[token]/route.ts        # Fetch public quiz
+│   │   │   ├── quizzes/[token]/
+│   │   │   │   ├── route.ts                    # Fetch public quiz
+│   │   │   │   ├── reveal/route.ts             # Submit answer + reveal correct answer
+│   │   │   │   └── sessions/
+│   │   │   │       ├── route.ts                # Create quiz session
+│   │   │   │       └── [sessionId]/route.ts    # Complete quiz session
 │   │   │   └── questions/[id]/
 │   │   │       ├── votes/route.ts              # Vote on question
 │   │   │       └── comments/route.ts           # Comment on question
@@ -116,11 +121,15 @@ supabase/
     ├── 00007_add_site_feedback.sql              # Site feedback table
     ├── 00008_add_educator_role.sql              # Admin role for educators
     ├── 00009_add_source_metadata.sql            # Structured metadata JSONB + suggested_filename
-    └── 00010_add_pmid_pmcid_columns.sql         # Dedicated PMID/PMCID columns
+    ├── 00010_add_pmid_pmcid_columns.sql         # Dedicated PMID/PMCID columns
+    ├── 00011_add_question_attempts.sql         # Learner answer tracking with certainty
+    ├── 00012_add_quiz_sessions.sql             # Quiz session tracking
+    ├── 00013_link_votes_comments_to_attempts.sql  # Link votes/comments to attempts
+    └── 00014_fix_corrupted_dois.sql            # Clean corrupted DOI values
 
 .github/
 └── workflows/
-    └── auto-merge-to-main.yml        # Auto-merges claude/* branches into main
+    └── auto-merge-to-main.yml        # Auto-merges claude/* branches into main + deploys to Vercel
 
 public/                               # Static assets
 ├── apple-touch-icon.png              # 180x180 iOS icon
@@ -196,22 +205,33 @@ QuizWelcome screen
     │ (checks localStorage for previous progress → offers resume)
     │
     ▼
+POST /api/public/quizzes/{token}/sessions
+    │  body: { visitor_id, total_questions }
+    │  returns: { session_id }
+    │
+    ▼
 QuizQuestion (one at a time)
     │
-    ├─ Learner selects option (A–E)
+    ├─ Step 1: Learner selects option (A–E) — highlighted, NOT yet submitted
+    │
+    ├─ Step 2: Certainty buttons appear: "Certain" (green) / "Medium" (yellow) / "Uncertain" (red)
+    │
+    ├─ Step 3: Learner clicks certainty → BOTH answer + certainty submitted
     │
     ├─ POST /api/public/quizzes/{token}/reveal
-    │      body: { question_id, selected_answer }
-    │      returns: { correct_answer, is_correct, explanation,
+    │      body: { question_id, selected_answer, certainty, visitor_id, session_id }
+    │      returns: { attempt_id, correct_answer, is_correct, explanation,
     │                 nuggets, cor_loe, section, source_reference,
     │                 doi, pmid, pmcid }
+    │      side effect: inserts row into question_attempts table
     │
+    ├─ Show certainty-aware feedback message (6 variants based on correct/incorrect × certainty)
     ├─ Show correct/incorrect feedback + explanation + pearls
     │
     ├─ Optional: vote (thumbs up/down) → POST /api/public/questions/{id}/votes
     ├─ Optional: comment → POST /api/public/questions/{id}/comments
     │
-    ├─ Save attempt to localStorage
+    ├─ Save attempt to localStorage (with certainty)
     │
     └─ Next question → repeat
            │
@@ -312,6 +332,8 @@ This app does **not** use Redux, Zustand, or any global state library. State is 
 | Auth session | Supabase cookies | HTTP-only, managed by middleware |
 | Educator data | Supabase PostgreSQL | Fetched per-request via API routes |
 | Learner progress | Browser `localStorage` | Saved/loaded by `src/lib/progress.ts` |
+| Learner attempts | Supabase `question_attempts` | Server-side, per answer submission |
+| Quiz sessions | Supabase `quiz_sessions` | Server-side, per quiz take |
 | Visitor identity | Browser `localStorage` | UUID generated once by `src/lib/visitor.ts` |
 
 ## Security Considerations
