@@ -59,27 +59,36 @@ export async function POST(
   const isCorrect =
     parsed.data.selected_answer === question.correct_answer;
 
-  // Store the attempt in the database and return its id
-  const { data: attempt, error: attemptError } = await supabase
-    .from('question_attempts')
-    .insert({
-      question_id: parsed.data.question_id,
-      quiz_id: quiz.id,
-      visitor_id: parsed.data.visitor_id || null,
-      selected_answer: parsed.data.selected_answer,
-      is_correct: isCorrect,
-      certainty: parsed.data.certainty || null,
-      session_id: parsed.data.session_id || null,
-    })
-    .select('id')
-    .single();
+  // Store the attempt in the database and return its id.
+  // This is best-effort — if the table doesn't exist yet or the insert
+  // fails, we still return the quiz answer to the learner.
+  let attemptId: string | null = null;
+  try {
+    const { data: attempt, error: attemptError } = await supabase
+      .from('question_attempts')
+      .insert({
+        question_id: parsed.data.question_id,
+        quiz_id: quiz.id,
+        visitor_id: parsed.data.visitor_id || null,
+        selected_answer: parsed.data.selected_answer,
+        is_correct: isCorrect,
+        certainty: parsed.data.certainty || null,
+        session_id: parsed.data.session_id || null,
+      })
+      .select('id')
+      .single();
 
-  if (attemptError) {
-    console.error('Attempt insert error:', attemptError);
+    if (attemptError) {
+      console.error('Attempt insert error:', attemptError);
+    } else {
+      attemptId = attempt?.id || null;
+    }
+  } catch (err) {
+    console.error('Attempt insert uncaught error:', err);
   }
 
   return NextResponse.json({
-    attempt_id: attempt?.id || null,
+    attempt_id: attemptId,
     correct_answer: question.correct_answer,
     is_correct: isCorrect,
     explanation: question.explanation,
