@@ -5,9 +5,9 @@ import { z } from 'zod';
 const RevealSchema = z.object({
   question_id: z.string().uuid(),
   selected_answer: z.string().min(1).max(1),
-  certainty: z.enum(['certain', 'medium', 'uncertain']).optional(),
-  visitor_id: z.string().optional(),
-  session_id: z.string().uuid().optional(),
+  certainty: z.enum(['certain', 'medium', 'uncertain']).optional().nullable(),
+  visitor_id: z.string().optional().nullable(),
+  session_id: z.string().uuid().optional().nullable(),
 });
 
 export async function POST(

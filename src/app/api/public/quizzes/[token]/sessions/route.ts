@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const SessionSchema = z.object({
-  visitor_id: z.string().optional(),
+  visitor_id: z.string().optional().nullable(),
   total_questions: z.number().int().positive(),
 });
 
