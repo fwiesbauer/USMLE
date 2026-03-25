@@ -348,33 +348,33 @@ export default async function AdminPage({ searchParams }: Props) {
                 <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <th className="px-4 py-3 min-w-[60px]">ID</th>
                   <th className="px-4 py-3 min-w-[200px]">
-                    <Link href={sortUrl('topic')}>Topic{sortIndicator('topic')}</Link>
+                    <Link href={sortUrl('topic')} className="hover:text-gray-900 underline decoration-dotted">Topic{sortIndicator('topic')}</Link>
                   </th>
                   <th className="px-4 py-3">
-                    <Link href={sortUrl('educator')}>Creator{sortIndicator('educator')}</Link>
+                    <Link href={sortUrl('educator')} className="hover:text-gray-900 underline decoration-dotted">Creator{sortIndicator('educator')}</Link>
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <Link href={sortUrl('attempts')}>Taken{sortIndicator('attempts')}</Link>
+                    <Link href={sortUrl('attempts')} className="hover:text-gray-900 underline decoration-dotted">Taken{sortIndicator('attempts')}</Link>
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <Link href={sortUrl('correct')}>Correct{sortIndicator('correct')}</Link>
+                    <Link href={sortUrl('correct')} className="hover:text-gray-900 underline decoration-dotted">Correct{sortIndicator('correct')}</Link>
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <Link href={sortUrl('incorrect')}>Wrong{sortIndicator('incorrect')}</Link>
+                    <Link href={sortUrl('incorrect')} className="hover:text-gray-900 underline decoration-dotted">Wrong{sortIndicator('incorrect')}</Link>
                   </th>
                   <th className="px-4 py-3 text-right">Certainty</th>
                   <th className="px-4 py-3 text-right">
-                    <Link href={sortUrl('thumbs_up')}>👍{sortIndicator('thumbs_up')}</Link>
+                    <Link href={sortUrl('thumbs_up')} className="hover:text-gray-900 underline decoration-dotted">👍{sortIndicator('thumbs_up')}</Link>
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <Link href={sortUrl('thumbs_down')}>👎{sortIndicator('thumbs_down')}</Link>
+                    <Link href={sortUrl('thumbs_down')} className="hover:text-gray-900 underline decoration-dotted">👎{sortIndicator('thumbs_down')}</Link>
                   </th>
                   <th className="px-4 py-3 text-right">
-                    <Link href={sortUrl('comments')}>💬{sortIndicator('comments')}</Link>
+                    <Link href={sortUrl('comments')} className="hover:text-gray-900 underline decoration-dotted">💬{sortIndicator('comments')}</Link>
                   </th>
                   <th className="px-4 py-3">Source</th>
                   <th className="px-4 py-3">
-                    <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
+                    <Link href={sortUrl('created_at')} className="hover:text-gray-900 underline decoration-dotted">Created{sortIndicator('created_at')}</Link>
                   </th>
                 </tr>
               </thead>
