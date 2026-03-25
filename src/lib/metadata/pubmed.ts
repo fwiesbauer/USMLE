@@ -15,6 +15,7 @@
 const ESUMMARY_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi';
 const EFETCH_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi';
 const ESEARCH_URL = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi';
+const IDCONV_URL = 'https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/';
 
 /** Timeout for each HTTP request (10 seconds). */
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -44,7 +45,7 @@ export interface PubMedResult {
  * Returns null if the lookup fails or PMID is not found.
  */
 export async function lookupByPmid(pmid: string): Promise<PubMedResult | null> {
-  if (!pmid || !/^\d{6,10}$/.test(pmid)) return null;
+  if (!pmid || !/^\d{1,10}$/.test(pmid)) return null;
 
   try {
     // Step 1: ESummary for core bibliographic data
@@ -98,25 +99,70 @@ export async function lookupByPmid(pmid: string): Promise<PubMedResult | null> {
 
 /**
  * Search PubMed for a PMID using a DOI.
+ * Uses the NCBI ID Converter API first (most reliable), then falls back to ESearch.
  * Returns the PMID string if found, or null.
  */
 export async function findPmidByDoi(doi: string): Promise<string | null> {
   if (!doi) return null;
 
+  // Strategy 1: NCBI ID Converter API — most reliable for DOI→PMID mapping
+  try {
+    const convUrl = `${IDCONV_URL}?ids=${encodeURIComponent(doi)}&format=json`;
+    console.log('[pubmed] ID Converter lookup:', convUrl);
+    const convResp = await fetchWithTimeout(convUrl);
+    console.log('[pubmed] ID Converter response status:', convResp.status);
+    if (convResp.ok) {
+      const convJson = await convResp.json();
+      const record = convJson?.records?.[0];
+      if (record?.pmid) {
+        console.log('[pubmed] ID Converter found PMID:', record.pmid, 'PMCID:', record.pmcid);
+        return record.pmid;
+      }
+    }
+  } catch (err) {
+    console.error('[pubmed] ID Converter error:', err);
+  }
+
+  // Strategy 2: ESearch fallback
   try {
     const searchUrl = `${ESEARCH_URL}?db=pubmed&term=${encodeURIComponent(doi)}[doi]&retmode=json`;
-    console.log('[pubmed] Searching PubMed by DOI:', searchUrl);
+    console.log('[pubmed] ESearch fallback by DOI:', searchUrl);
     const resp = await fetchWithTimeout(searchUrl);
-    console.log('[pubmed] Search response status:', resp.status);
+    console.log('[pubmed] ESearch response status:', resp.status);
     if (!resp.ok) return null;
 
     const json = await resp.json();
     const ids: string[] = json?.esearchresult?.idlist || [];
-    console.log('[pubmed] Found PMIDs:', ids);
+    console.log('[pubmed] ESearch found PMIDs:', ids);
     return ids.length > 0 ? ids[0] : null;
   } catch (err) {
-    console.error('[pubmed] findPmidByDoi error:', err);
+    console.error('[pubmed] ESearch findPmidByDoi error:', err);
     return null;
+  }
+}
+
+/**
+ * Use NCBI ID Converter to find both PMID and PMCID from a DOI in one call.
+ * Returns { pmid, pmcid } — either or both may be null.
+ */
+export async function findIdsByDoi(doi: string): Promise<{ pmid: string | null; pmcid: string | null }> {
+  if (!doi) return { pmid: null, pmcid: null };
+
+  try {
+    const url = `${IDCONV_URL}?ids=${encodeURIComponent(doi)}&format=json`;
+    console.log('[pubmed] ID Converter (full) lookup:', url);
+    const resp = await fetchWithTimeout(url);
+    if (!resp.ok) return { pmid: null, pmcid: null };
+
+    const json = await resp.json();
+    const record = json?.records?.[0];
+    const pmid = record?.pmid || null;
+    const pmcid = record?.pmcid || null;
+    console.log('[pubmed] ID Converter result — PMID:', pmid, 'PMCID:', pmcid);
+    return { pmid, pmcid };
+  } catch (err) {
+    console.error('[pubmed] ID Converter (full) error:', err);
+    return { pmid: null, pmcid: null };
   }
 }
 

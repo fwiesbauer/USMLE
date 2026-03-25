@@ -21,7 +21,7 @@
  */
 
 import type { SourceMetadata } from '@/lib/ai/extract-source-reference';
-import { lookupByPmid, findPmidByDoi, type PubMedResult } from './pubmed';
+import { lookupByPmid, findPmidByDoi, findIdsByDoi, type PubMedResult } from './pubmed';
 import { lookupByDoi, type CrossrefResult } from './crossref';
 
 /**
@@ -56,24 +56,33 @@ export async function enrichSourceMetadata(
     }
 
     // ------------------------------------------------------------------
-    // Path B: No PMID, but we have a DOI → try Crossref, then PubMed
+    // Path B: No PMID, but we have a DOI → try Crossref + ID Converter + PubMed
     // ------------------------------------------------------------------
     if (doi) {
-      // B1: Crossref for bibliographic data
+      // B1: Run Crossref and NCBI ID Converter in parallel for speed
       console.log('[enrich] Path B: looking up DOI', doi);
-      const crossref = await lookupByDoi(doi);
+      const [crossref, idConvResult] = await Promise.all([
+        lookupByDoi(doi).catch(() => null),
+        findIdsByDoi(doi).catch(() => ({ pmid: null, pmcid: null })),
+      ]);
       console.log('[enrich] Crossref result:', crossref ? 'found' : 'not found');
+      console.log('[enrich] ID Converter result — PMID:', idConvResult.pmid, 'PMCID:', idConvResult.pmcid);
       if (crossref) {
         applyCrossref(enriched, crossref);
       }
 
-      // B2: Try to discover a PMID via PubMed search-by-DOI
-      const discoveredPmid = await findPmidByDoi(doi);
-      console.log('[enrich] PubMed DOI search result: PMID =', discoveredPmid);
-      if (discoveredPmid) {
-        enriched.pmid = discoveredPmid;
+      // B2: Apply PMID/PMCID from ID Converter
+      if (idConvResult.pmid) enriched.pmid = idConvResult.pmid;
+      if (idConvResult.pmcid) enriched.pmcid = idConvResult.pmcid;
 
-        // B3: Now that we have a PMID, get MeSH terms & keywords
+      // B3: If we have a PMID (from ID Converter or fallback ESearch), get MeSH terms & keywords
+      let discoveredPmid = idConvResult.pmid;
+      if (!discoveredPmid) {
+        discoveredPmid = await findPmidByDoi(doi);
+        if (discoveredPmid) enriched.pmid = discoveredPmid;
+      }
+
+      if (discoveredPmid) {
         const pubmed = await lookupByPmid(discoveredPmid);
         console.log('[enrich] PubMed lookup result:', pubmed ? 'found' : 'not found', 'PMCID:', pubmed?.pmcid);
         if (pubmed) {
