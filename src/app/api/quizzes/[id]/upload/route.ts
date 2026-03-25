@@ -2,6 +2,7 @@ import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { extractTextFromPDF } from '@/lib/pdf/extract-text';
 import { extractSourceReference, type SourceMetadata } from '@/lib/ai/extract-source-reference';
 import { enrichSourceMetadata } from '@/lib/metadata/enrich';
+import { findIdsByDoi } from '@/lib/metadata/pubmed';
 import { decrypt } from '@/lib/crypto/encrypt';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -112,6 +113,21 @@ export async function POST(
       console.log('[upload] No sourceMetadata — skipping enrichment');
     }
 
+    // Safety-net: if enrichment didn't find PMID/PMCID but we have a DOI,
+    // try one more direct ID Converter call (independent of enrichment function)
+    if (doi && (!pmid || !pmcid)) {
+      try {
+        console.log('[upload] Safety-net: direct ID Converter call for DOI:', doi);
+        const ids = await findIdsByDoi(doi);
+        if (ids.pmid && !pmid) { pmid = ids.pmid; console.log('[upload] Safety-net found PMID:', pmid); }
+        if (ids.pmcid && !pmcid) { pmcid = ids.pmcid; console.log('[upload] Safety-net found PMCID:', pmcid); }
+      } catch (err) {
+        console.error('[upload] Safety-net ID Converter failed:', err);
+      }
+    }
+
+    console.log('[upload] FINAL identifiers for DB save — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
+
     // Use the AI-suggested filename when available; fall back to the original upload name
     const finalFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
       ? suggestedFilename
@@ -131,18 +147,20 @@ export async function POST(
       // Non-fatal — continue without storage
     }
 
-    // Core save — must succeed (uses only original columns)
+    // Core save — must succeed
+    const updatePayload = {
+      source_text: extraction.text,
+      source_filename: finalFilename,
+      pdf_storage_path: storagePath,
+      ...(sourceReference ? { source_reference: sourceReference } : {}),
+      ...(doi ? { doi } : {}),
+      ...(pmid ? { pmid } : {}),
+      ...(pmcid ? { pmcid } : {}),
+    };
+    console.log('[upload] DB update payload keys:', Object.keys(updatePayload).filter(k => k !== 'source_text'));
     const { error: updateError } = await supabase
       .from('quizzes')
-      .update({
-        source_text: extraction.text,
-        source_filename: finalFilename,
-        pdf_storage_path: storagePath,
-        ...(sourceReference ? { source_reference: sourceReference } : {}),
-        ...(doi ? { doi } : {}),
-        ...(pmid ? { pmid } : {}),
-        ...(pmcid ? { pmcid } : {}),
-      })
+      .update(updatePayload)
       .eq('id', params.id);
 
     if (updateError) {
