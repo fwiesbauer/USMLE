@@ -72,6 +72,7 @@ export interface PublicQuestion {
 
 /** Returned by the /reveal endpoint after learner submits answer */
 export interface RevealResponse {
+  attempt_id: string | null;
   correct_answer: string;
   is_correct: boolean;
   explanation: string;
