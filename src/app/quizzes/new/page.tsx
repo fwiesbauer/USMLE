@@ -94,7 +94,7 @@ export default function NewQuizPage() {
 
       if (storageError) {
         console.error('Storage upload error:', storageError);
-        setError('Failed to upload PDF. Please try again.');
+        setError(storageError.message || 'Failed to upload PDF. Please try again.');
         return;
       }
 
