@@ -243,3 +243,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 | 8 | `00008_add_educator_role.sql` | Adds `role` column to educators (`educator` or `admin`) |
 | 9 | `00009_add_source_metadata.sql` | Adds `source_metadata` (JSONB) and `suggested_filename` columns to quizzes |
 | 10 | `00010_add_pmid_pmcid_columns.sql` | Adds dedicated `pmid` and `pmcid` TEXT columns to quizzes |
+| 11 | `00011_storage_rls_policies.sql` | Adds RLS policies on `storage.objects` and `storage.buckets` for browser-side PDF upload |

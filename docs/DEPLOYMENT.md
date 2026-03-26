@@ -29,7 +29,7 @@ If you haven't already:
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run all migrations from `supabase/migrations/` in the SQL Editor (in order).
-3. Create a `pdfs` storage bucket (private).
+3. Create a `pdfs` storage bucket (private) and run migration `00011` for storage RLS policies.
 4. Configure auth redirect URLs (see [SETUP.md](./SETUP.md#configure-auth)).
 
 ## Step 2: Deploy to Vercel

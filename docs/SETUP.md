@@ -42,6 +42,7 @@ Run the SQL migrations in order against your Supabase database. Go to the **SQL 
 00008_add_educator_role.sql    — Admin role column on educators
 00009_add_source_metadata.sql  — Structured metadata JSONB + suggested filename
 00010_add_pmid_pmcid_columns.sql — Dedicated PMID/PMCID columns
+00011_storage_rls_policies.sql — RLS policies for browser-side PDF upload to storage
 ```
 
 Run them **in numerical order** — each migration builds on the previous one.
@@ -51,6 +52,7 @@ Run them **in numerical order** — each migration builds on the previous one.
 1. In the Supabase dashboard, go to **Storage**.
 2. Create a new bucket called `pdfs`.
 3. Set it to **private** (only authenticated users can upload).
+4. Run migration `00011_storage_rls_policies.sql` to add RLS policies allowing authenticated users to upload/read PDFs directly from the browser.
 
 ### Configure Auth
 

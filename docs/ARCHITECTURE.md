@@ -116,7 +116,8 @@ supabase/
     ├── 00007_add_site_feedback.sql              # Site feedback table
     ├── 00008_add_educator_role.sql              # Admin role for educators
     ├── 00009_add_source_metadata.sql            # Structured metadata JSONB + suggested_filename
-    └── 00010_add_pmid_pmcid_columns.sql         # Dedicated PMID/PMCID columns
+    ├── 00010_add_pmid_pmcid_columns.sql         # Dedicated PMID/PMCID columns
+    └── 00011_storage_rls_policies.sql           # RLS policies for browser-side PDF upload
 
 .github/
 └── workflows/
