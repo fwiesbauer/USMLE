@@ -124,50 +124,50 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className=\"min-h-screen flex items-center justify-center bg-gray-50\">
-        <p className=\"text-gray-500\">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className=\"min-h-screen bg-gray-50\">
-      <header className=\"bg-white border-b border-gray-200 px-6 py-4\">
-        <div className=\"max-w-6xl mx-auto flex items-center justify-between\">
-          <Logo href=\"/dashboard\" />
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <Logo href="/dashboard" />
         </div>
       </header>
 
-      <main className=\"max-w-2xl mx-auto px-6 py-8 space-y-6\">
-        <h2 className=\"text-2xl font-bold text-gray-900\">Settings</h2>
+      <main className="max-w-2xl mx-auto px-6 py-8 space-y-6">
+        <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
 
         {message && (
-          <p className=\"text-sm text-correct-dark bg-correct-fill rounded-lg px-3 py-2\">
+          <p className="text-sm text-correct-dark bg-correct-fill rounded-lg px-3 py-2">
             {message}
           </p>
         )}
         {error && (
-          <p className=\"text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2\">
+          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
 
         {/* Profile */}
         <Card>
-          <h3 className=\"font-bold text-gray-900 mb-4\">Profile</h3>
-          <div className=\"space-y-4\">
+          <h3 className="font-bold text-gray-900 mb-4">Profile</h3>
+          <div className="space-y-4">
             <Input
-              id=\"displayName\"
-              label=\"Display Name\"
+              id="displayName"
+              label="Display Name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
             />
             <Input
-              id=\"email\"
-              label=\"Email\"
+              id="email"
+              label="Email"
               value={email}
               disabled
-              className=\"bg-gray-50\"
+              className="bg-gray-50"
             />
             <Button onClick={handleSaveProfile} loading={saving}>
               Save Profile
@@ -177,40 +177,40 @@ export default function SettingsPage() {
 
         {/* API Key */}
         <Card>
-          <h3 className=\"font-bold text-gray-900 mb-4\">AI Provider & API Key</h3>
+          <h3 className="font-bold text-gray-900 mb-4">AI Provider & API Key</h3>
           {masterKeyActive ? (
-            <div className=\"rounded-lg border border-brand-light bg-brand-fill px-4 py-3\">
-              <p className=\"text-sm font-medium text-brand-dark\">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+              <p className="text-sm font-medium text-blue-900">
                 An API key has been provided by the site administrator.
               </p>
-              <p className=\"text-sm text-brand-mid mt-1\">
-                You do not need to configure your own key \u2014 quiz generation is
+              <p className="text-sm text-blue-700 mt-1">
+                You do not need to configure your own key — quiz generation is
                 ready to use.
               </p>
             </div>
           ) : (
             <>
-              <p className=\"text-sm text-gray-500 mb-4\">
+              <p className="text-sm text-gray-500 mb-4">
                 Choose your AI provider and enter your API key. The key is encrypted
-                and stored securely \u2014 it is never exposed in client responses.
+                and stored securely — it is never exposed in client responses.
               </p>
-              <div className=\"space-y-4\">
+              <div className="space-y-4">
                 <div>
                   <label
-                    htmlFor=\"provider\"
-                    className=\"block text-sm font-medium text-gray-700 mb-1\"
+                    htmlFor="provider"
+                    className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     AI Provider
                   </label>
                   <select
-                    id=\"provider\"
+                    id="provider"
                     value={provider}
                     onChange={(e) => {
                       setProvider(e.target.value as AIProvider);
                       setApiKey('');
                       setHasExistingKey(false);
                     }}
-                    className=\"w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent\"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   >
                     {AI_PROVIDERS.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -220,9 +220,9 @@ export default function SettingsPage() {
                   </select>
                 </div>
                 <Input
-                  id=\"apiKey\"
-                  label=\"API Key\"
-                  type=\"password\"
+                  id="apiKey"
+                  label="API Key"
+                  type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={
