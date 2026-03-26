@@ -15,6 +15,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  try {
   const supabase = createServerClient();
   const {
     data: { user },
@@ -37,7 +38,15 @@ export async function POST(
     return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
   }
 
-  const formData = await request.formData();
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json(
+      { error: 'Failed to read upload data. The file may be too large for the server.' },
+      { status: 400 }
+    );
+  }
   const file = formData.get('file') as File | null;
 
   if (!file) {
@@ -129,9 +138,11 @@ export async function POST(
     console.log('[upload] FINAL identifiers for DB save — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
 
     // Use the AI-suggested filename when available; fall back to the original upload name
-    const finalFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
+    const rawFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
       ? suggestedFilename
       : file.name;
+    // Sanitize filename: replace colons and other characters problematic in storage paths/URLs
+    const finalFilename = rawFilename.replace(/[:<>"|?*]/g, '-');
 
     // Upload PDF to Supabase Storage under the final filename
     const storagePath = `quizzes/${params.id}/${finalFilename}`;
@@ -202,5 +213,11 @@ export async function POST(
     const message =
       err instanceof Error ? err.message : 'Failed to process PDF';
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+  } catch (err) {
+    console.error('[upload] Unhandled error:', err);
+    const message =
+      err instanceof Error ? err.message : 'An internal error occurred while processing the upload.';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
