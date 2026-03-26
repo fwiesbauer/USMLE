@@ -3,7 +3,7 @@ import { extractTextFromPDF } from '@/lib/pdf/extract-text';
 import { extractSourceReference, type SourceMetadata } from '@/lib/ai/extract-source-reference';
 import { enrichSourceMetadata } from '@/lib/metadata/enrich';
 import { findIdsByDoi } from '@/lib/metadata/pubmed';
-import { decrypt } from '@/lib/crypto/encrypt';
+import { resolveApiKey } from '@/lib/ai/resolve-api-key';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Allow up to 60s for PDF processing + enrichment (Vercel Hobby max)
@@ -71,25 +71,15 @@ export async function POST(
     let sourceMetadata: SourceMetadata | null = null;
     let suggestedFilename: string | null = null;
     try {
-      const serviceClient = createServiceClient();
-      const { data: educator } = await serviceClient
-        .from('educators')
-        .select('anthropic_api_key_encrypted, ai_provider')
-        .eq('id', user.id)
-        .single();
-
-      if (educator?.anthropic_api_key_encrypted) {
-        const apiKey = decrypt(educator.anthropic_api_key_encrypted);
-        const provider = (educator.ai_provider || 'anthropic') as import('@/lib/ai/providers').AIProvider;
-        const result = await extractSourceReference(extraction.text, apiKey, provider);
-        sourceReference = result.reference;
-        doi = result.doi || null;
-        pmid = result.metadata.pmid || null;
-        pmcid = result.metadata.pmcid || null;
-        sourceMetadata = result.metadata;
-        suggestedFilename = result.metadata.suggested_filename || null;
-        console.log('[upload] After LLM extraction — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
-      }
+      const resolved = await resolveApiKey(user.id);
+      const result = await extractSourceReference(extraction.text, resolved.apiKey, resolved.provider);
+      sourceReference = result.reference;
+      doi = result.doi || null;
+      pmid = result.metadata.pmid || null;
+      pmcid = result.metadata.pmcid || null;
+      sourceMetadata = result.metadata;
+      suggestedFilename = result.metadata.suggested_filename || null;
+      console.log('[upload] After LLM extraction — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
     } catch (err) {
       console.error('[upload] Citation extraction failed:', err);
     }

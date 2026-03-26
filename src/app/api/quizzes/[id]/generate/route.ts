@@ -2,9 +2,8 @@ import { createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { generateQuestions } from '@/lib/ai/generate-questions';
 import { extractSourceReference } from '@/lib/ai/extract-source-reference';
 import { enrichSourceMetadata } from '@/lib/metadata/enrich';
-import { decrypt } from '@/lib/crypto/encrypt';
+import { resolveApiKey } from '@/lib/ai/resolve-api-key';
 import { NextRequest, NextResponse } from 'next/server';
-import type { AIProvider } from '@/lib/ai/providers';
 
 // Allow up to 300s for AI generation (Vercel Pro: 300s, Hobby: 60s)
 export const maxDuration = 300;
@@ -41,31 +40,17 @@ export async function POST(
     );
   }
 
-  // Get educator's API key and provider
+  // Resolve API key: master key (if enabled) → educator's own key
   const serviceClient = createServiceClient();
-  const { data: educator } = await serviceClient
-    .from('educators')
-    .select('anthropic_api_key_encrypted, ai_provider')
-    .eq('id', user.id)
-    .single();
-
-  if (!educator?.anthropic_api_key_encrypted) {
-    return NextResponse.json(
-      { error: 'No API key configured. Please add your API key in Settings.' },
-      { status: 400 }
-    );
-  }
-
-  const provider = (educator.ai_provider || 'anthropic') as AIProvider;
-
   let apiKey: string;
+  let provider: import('@/lib/ai/providers').AIProvider;
   try {
-    apiKey = decrypt(educator.anthropic_api_key_encrypted);
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to decrypt API key. Please update your API key in Settings.' },
-      { status: 500 }
-    );
+    const resolved = await resolveApiKey(user.id);
+    apiKey = resolved.apiKey;
+    provider = resolved.provider;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'No API key configured.';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 
   // Mark as generating
