@@ -66,8 +66,8 @@ export default function NewQuizPage() {
       });
 
       if (!createRes.ok) {
-        const data = await createRes.json();
-        setError(data.error || 'Failed to create quiz.');
+        const data = await createRes.json().catch(() => null);
+        setError(data?.error || 'Failed to create quiz.');
         return;
       }
 
@@ -84,8 +84,8 @@ export default function NewQuizPage() {
       });
 
       if (!uploadRes.ok) {
-        const data = await uploadRes.json();
-        setError(data.error || 'Failed to upload PDF.');
+        const data = await uploadRes.json().catch(() => null);
+        setError(data?.error || 'Failed to upload PDF.');
         return;
       }
 
@@ -116,10 +116,10 @@ export default function NewQuizPage() {
         method: 'POST',
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setError(data.error || 'Generation failed. Please try again.');
+        setError(data?.error || 'Generation failed. Please try again.');
         setStep('confirm');
         setGenerating(false);
         return;
