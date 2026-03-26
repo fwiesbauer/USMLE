@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -51,6 +52,10 @@ export default function NewQuizPage() {
 
   const handleUpload = async () => {
     if (!file || !title.trim()) return;
+    if (file.size > 20 * 1024 * 1024) {
+      setError('File too large. Maximum size is 20 MB.');
+      return;
+    }
     setError('');
     setUploading(true);
 
@@ -74,18 +79,38 @@ export default function NewQuizPage() {
       const quiz = await createRes.json();
       setQuizId(quiz.id);
 
-      // Upload PDF
-      const formData = new FormData();
-      formData.append('file', file);
+      // Sanitize filename for storage path
+      const sanitizedName = file.name.replace(/[:<>"|?*]/g, '-');
+      const storagePath = `quizzes/${quiz.id}/${sanitizedName}`;
 
+      // Upload PDF directly to Supabase Storage (bypasses Vercel body size limit)
+      const supabase = createClient();
+      const { error: storageError } = await supabase.storage
+        .from('pdfs')
+        .upload(storagePath, file, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      if (storageError) {
+        console.error('Storage upload error:', storageError);
+        setError('Failed to upload PDF. Please try again.');
+        return;
+      }
+
+      // Tell the server to process the uploaded PDF
       const uploadRes = await fetch(`/api/quizzes/${quiz.id}/upload`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storage_path: storagePath,
+          filename: sanitizedName,
+        }),
       });
 
       if (!uploadRes.ok) {
         const data = await uploadRes.json().catch(() => null);
-        setError(data?.error || 'Failed to upload PDF.');
+        setError(data?.error || 'Failed to process PDF.');
         return;
       }
 

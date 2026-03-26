@@ -9,66 +9,56 @@ import { NextRequest, NextResponse } from 'next/server';
 // Allow up to 60s for PDF processing + enrichment (Vercel Hobby max)
 export const maxDuration = 60;
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+    const supabase = createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  // Verify quiz ownership
-  const { data: quiz, error: quizError } = await supabase
-    .from('quizzes')
-    .select('*')
-    .eq('id', params.id)
-    .eq('educator_id', user.id)
-    .single();
+    // Verify quiz ownership
+    const { data: quiz, error: quizError } = await supabase
+      .from('quizzes')
+      .select('*')
+      .eq('id', params.id)
+      .eq('educator_id', user.id)
+      .single();
 
-  if (quizError || !quiz) {
-    return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
-  }
+    if (quizError || !quiz) {
+      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
+    }
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json(
-      { error: 'Failed to read upload data. The file may be too large for the server.' },
-      { status: 400 }
-    );
-  }
-  const file = formData.get('file') as File | null;
+    // Client uploads the PDF directly to Supabase Storage and sends us the path + filename
+    const body = await request.json();
+    const storagePath: string | undefined = body.storage_path;
+    const originalFilename: string | undefined = body.filename;
 
-  if (!file) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  }
+    if (!storagePath) {
+      return NextResponse.json({ error: 'No storage path provided.' }, { status: 400 });
+    }
 
-  if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json(
-      { error: 'File too large. Maximum size is 20 MB.' },
-      { status: 400 }
-    );
-  }
+    // Download PDF from Supabase Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('pdfs')
+      .download(storagePath);
 
-  if (file.type !== 'application/pdf') {
-    return NextResponse.json(
-      { error: 'Only PDF files are accepted.' },
-      { status: 400 }
-    );
-  }
+    if (downloadError || !fileData) {
+      console.error('Storage download error:', downloadError);
+      return NextResponse.json(
+        { error: 'Failed to read uploaded PDF from storage.' },
+        { status: 400 }
+      );
+    }
 
-  try {
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(await fileData.arrayBuffer());
 
     // Extract text
     const extraction = await extractTextFromPDF(buffer);
@@ -140,29 +130,27 @@ export async function POST(
     // Use the AI-suggested filename when available; fall back to the original upload name
     const rawFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
       ? suggestedFilename
-      : file.name;
+      : (originalFilename || 'document.pdf');
     // Sanitize filename: replace colons and other characters problematic in storage paths/URLs
     const finalFilename = rawFilename.replace(/[:<>"|?*]/g, '-');
 
-    // Upload PDF to Supabase Storage under the final filename
-    const storagePath = `quizzes/${params.id}/${finalFilename}`;
-    const { error: storageError } = await supabase.storage
-      .from('pdfs')
-      .upload(storagePath, buffer, {
-        contentType: 'application/pdf',
-        upsert: true,
-      });
-
-    if (storageError) {
-      console.error('Storage upload error:', storageError);
-      // Non-fatal — continue without storage
+    // If the AI suggested a better filename, rename the file in storage
+    if (finalFilename !== originalFilename) {
+      try {
+        const newPath = `quizzes/${params.id}/${finalFilename}`;
+        await supabase.storage.from('pdfs').move(storagePath, newPath);
+      } catch {
+        // Non-fatal — keep the original storage path
+      }
     }
+
+    const finalStoragePath = `quizzes/${params.id}/${finalFilename}`;
 
     // Core save — must succeed
     const updatePayload = {
       source_text: extraction.text,
       source_filename: finalFilename,
-      pdf_storage_path: storagePath,
+      pdf_storage_path: finalStoragePath,
       ...(sourceReference ? { source_reference: sourceReference } : {}),
       ...(doi ? { doi } : {}),
       ...(pmid ? { pmid } : {}),
@@ -197,7 +185,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-      pdf_storage_path: storagePath,
+      pdf_storage_path: finalStoragePath,
       source_text_preview: extraction.preview,
       source_reference: sourceReference,
       source_metadata: sourceMetadata,
@@ -210,14 +198,9 @@ export async function POST(
       warning: extraction.warning,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Failed to process PDF';
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
-  } catch (err) {
     console.error('[upload] Unhandled error:', err);
     const message =
-      err instanceof Error ? err.message : 'An internal error occurred while processing the upload.';
+      err instanceof Error ? err.message : 'Failed to process PDF';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
