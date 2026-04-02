@@ -126,13 +126,23 @@ experimental: {
 - **Vercel**: Dashboard → Functions tab shows API route logs and errors.
 - **Supabase**: Dashboard → Logs shows database queries and auth events.
 
-## Continuous Deployment (Auto-Merge)
+## Continuous Deployment (Auto-Merge + Deploy)
 
-A GitHub Actions workflow (`.github/workflows/auto-merge-to-main.yml`) automatically merges any push to a `claude/**` branch into `main`. This means:
+A GitHub Actions workflow (`.github/workflows/auto-merge-to-main.yml`) automatically merges any push to a `claude/**` branch into `main` and deploys to Vercel:
 
 1. Code pushed to the development branch is automatically merged to `main`.
-2. Vercel detects the push to `main` and auto-deploys.
-3. No manual pull request creation or merging is needed.
+2. The workflow builds and deploys to Vercel production using the Vercel CLI.
+3. No manual pull request creation, merging, or deployment is needed.
+
+**Why the workflow deploys directly**: GitHub's `GITHUB_TOKEN` pushes intentionally do not trigger webhooks (to prevent infinite loops). This means Vercel's Git integration never sees the merge commit. The workflow uses the Vercel CLI to deploy directly instead.
+
+### Required GitHub Secret
+
+| Secret | Where to get it | Purpose |
+|--------|-----------------|---------|
+| `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) | Authenticates Vercel CLI in the workflow |
+
+Add this as a **Repository secret** in GitHub: **Settings → Secrets and variables → Actions → New repository secret**.
 
 The workflow runs with `contents: write` permissions and uses the `github-actions[bot]` identity for merge commits.
 

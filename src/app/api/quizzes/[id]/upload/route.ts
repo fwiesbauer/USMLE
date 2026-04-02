@@ -3,63 +3,62 @@ import { extractTextFromPDF } from '@/lib/pdf/extract-text';
 import { extractSourceReference, type SourceMetadata } from '@/lib/ai/extract-source-reference';
 import { enrichSourceMetadata } from '@/lib/metadata/enrich';
 import { findIdsByDoi } from '@/lib/metadata/pubmed';
-import { decrypt } from '@/lib/crypto/encrypt';
+import { resolveApiKey } from '@/lib/ai/resolve-api-key';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Allow up to 60s for PDF processing + enrichment (Vercel Hobby max)
 export const maxDuration = 60;
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const supabase = createServerClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Verify quiz ownership
-  const { data: quiz, error: quizError } = await supabase
-    .from('quizzes')
-    .select('*')
-    .eq('id', params.id)
-    .eq('educator_id', user.id)
-    .single();
-
-  if (quizError || !quiz) {
-    return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
-  }
-
-  const formData = await request.formData();
-  const file = formData.get('file') as File | null;
-
-  if (!file) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json(
-      { error: 'File too large. Maximum size is 20 MB.' },
-      { status: 400 }
-    );
-  }
-
-  if (file.type !== 'application/pdf') {
-    return NextResponse.json(
-      { error: 'Only PDF files are accepted.' },
-      { status: 400 }
-    );
-  }
-
   try {
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const supabase = createServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Verify quiz ownership
+    const { data: quiz, error: quizError } = await supabase
+      .from('quizzes')
+      .select('*')
+      .eq('id', params.id)
+      .eq('educator_id', user.id)
+      .single();
+
+    if (quizError || !quiz) {
+      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
+    }
+
+    // Client uploads the PDF directly to Supabase Storage and sends us the path + filename
+    const body = await request.json();
+    const storagePath: string | undefined = body.storage_path;
+    const originalFilename: string | undefined = body.filename;
+
+    if (!storagePath) {
+      return NextResponse.json({ error: 'No storage path provided.' }, { status: 400 });
+    }
+
+    // Download PDF from Supabase Storage
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('pdfs')
+      .download(storagePath);
+
+    if (downloadError || !fileData) {
+      console.error('Storage download error:', downloadError);
+      return NextResponse.json(
+        { error: 'Failed to read uploaded PDF from storage.' },
+        { status: 400 }
+      );
+    }
+
+    const buffer = Buffer.from(await fileData.arrayBuffer());
 
     // Extract text
     const extraction = await extractTextFromPDF(buffer);
@@ -72,25 +71,15 @@ export async function POST(
     let sourceMetadata: SourceMetadata | null = null;
     let suggestedFilename: string | null = null;
     try {
-      const serviceClient = createServiceClient();
-      const { data: educator } = await serviceClient
-        .from('educators')
-        .select('anthropic_api_key_encrypted, ai_provider')
-        .eq('id', user.id)
-        .single();
-
-      if (educator?.anthropic_api_key_encrypted) {
-        const apiKey = decrypt(educator.anthropic_api_key_encrypted);
-        const provider = (educator.ai_provider || 'anthropic') as import('@/lib/ai/providers').AIProvider;
-        const result = await extractSourceReference(extraction.text, apiKey, provider);
-        sourceReference = result.reference;
-        doi = result.doi || null;
-        pmid = result.metadata.pmid || null;
-        pmcid = result.metadata.pmcid || null;
-        sourceMetadata = result.metadata;
-        suggestedFilename = result.metadata.suggested_filename || null;
-        console.log('[upload] After LLM extraction — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
-      }
+      const resolved = await resolveApiKey(user.id);
+      const result = await extractSourceReference(extraction.text, resolved.apiKey, resolved.provider);
+      sourceReference = result.reference;
+      doi = result.doi || null;
+      pmid = result.metadata.pmid || null;
+      pmcid = result.metadata.pmcid || null;
+      sourceMetadata = result.metadata;
+      suggestedFilename = result.metadata.suggested_filename || null;
+      console.log('[upload] After LLM extraction — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
     } catch (err) {
       console.error('[upload] Citation extraction failed:', err);
     }
@@ -129,29 +118,29 @@ export async function POST(
     console.log('[upload] FINAL identifiers for DB save — DOI:', doi, 'PMID:', pmid, 'PMCID:', pmcid);
 
     // Use the AI-suggested filename when available; fall back to the original upload name
-    const finalFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
+    const rawFilename = suggestedFilename && suggestedFilename !== 'document.pdf'
       ? suggestedFilename
-      : file.name;
+      : (originalFilename || 'document.pdf');
+    // Sanitize filename: replace colons and other characters problematic in storage paths/URLs
+    const finalFilename = rawFilename.replace(/[:<>"|?*]/g, '-');
 
-    // Upload PDF to Supabase Storage under the final filename
-    const storagePath = `quizzes/${params.id}/${finalFilename}`;
-    const { error: storageError } = await supabase.storage
-      .from('pdfs')
-      .upload(storagePath, buffer, {
-        contentType: 'application/pdf',
-        upsert: true,
-      });
-
-    if (storageError) {
-      console.error('Storage upload error:', storageError);
-      // Non-fatal — continue without storage
+    // If the AI suggested a better filename, rename the file in storage
+    if (finalFilename !== originalFilename) {
+      try {
+        const newPath = `quizzes/${params.id}/${finalFilename}`;
+        await supabase.storage.from('pdfs').move(storagePath, newPath);
+      } catch {
+        // Non-fatal — keep the original storage path
+      }
     }
+
+    const finalStoragePath = `quizzes/${params.id}/${finalFilename}`;
 
     // Core save — must succeed
     const updatePayload = {
       source_text: extraction.text,
       source_filename: finalFilename,
-      pdf_storage_path: storagePath,
+      pdf_storage_path: finalStoragePath,
       ...(sourceReference ? { source_reference: sourceReference } : {}),
       ...(doi ? { doi } : {}),
       ...(pmid ? { pmid } : {}),
@@ -186,7 +175,7 @@ export async function POST(
     }
 
     return NextResponse.json({
-      pdf_storage_path: storagePath,
+      pdf_storage_path: finalStoragePath,
       source_text_preview: extraction.preview,
       source_reference: sourceReference,
       source_metadata: sourceMetadata,
@@ -199,8 +188,9 @@ export async function POST(
       warning: extraction.warning,
     });
   } catch (err) {
+    console.error('[upload] Unhandled error:', err);
     const message =
       err instanceof Error ? err.message : 'Failed to process PDF';
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

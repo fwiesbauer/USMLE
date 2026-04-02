@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [masterKeyActive, setMasterKeyActive] = useState(false);
 
   const currentProvider = AI_PROVIDERS.find((p) => p.value === provider)!;
 
@@ -44,11 +45,10 @@ export default function SettingsPage() {
         return;
       }
 
-      const { data: educator } = await supabase
-        .from('educators')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      const [{ data: educator }, masterRes] = await Promise.all([
+        supabase.from('educators').select('*').eq('id', user.id).single(),
+        fetch('/api/settings/master-key-status').then((r) => r.json()).catch(() => null),
+      ]);
 
       if (educator) {
         setDisplayName(educator.display_name || '');
@@ -59,6 +59,9 @@ export default function SettingsPage() {
         if (educator.anthropic_api_key_encrypted) {
           setHasExistingKey(true);
         }
+      }
+      if (masterRes?.master_key_active) {
+        setMasterKeyActive(true);
       }
       setLoading(false);
     }
@@ -175,51 +178,65 @@ export default function SettingsPage() {
         {/* API Key */}
         <Card>
           <h3 className="font-bold text-gray-900 mb-4">AI Provider & API Key</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            Choose your AI provider and enter your API key. The key is encrypted
-            and stored securely — it is never exposed in client responses.
-          </p>
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="provider"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                AI Provider
-              </label>
-              <select
-                id="provider"
-                value={provider}
-                onChange={(e) => {
-                  setProvider(e.target.value as AIProvider);
-                  setApiKey('');
-                  setHasExistingKey(false);
-                }}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                {AI_PROVIDERS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+          {masterKeyActive ? (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+              <p className="text-sm font-medium text-blue-900">
+                An API key has been provided by the site administrator.
+              </p>
+              <p className="text-sm text-blue-700 mt-1">
+                You do not need to configure your own key — quiz generation is
+                ready to use.
+              </p>
             </div>
-            <Input
-              id="apiKey"
-              label="API Key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={
-                hasExistingKey
-                  ? `${currentProvider.placeholder.replace('...', '***************')}`
-                  : currentProvider.placeholder
-              }
-            />
-            <Button onClick={handleSaveApiKey} loading={savingKey}>
-              Update API Key
-            </Button>
-          </div>
+          ) : (
+            <>
+              <p className="text-sm text-gray-500 mb-4">
+                Choose your AI provider and enter your API key. The key is encrypted
+                and stored securely — it is never exposed in client responses.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="provider"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    AI Provider
+                  </label>
+                  <select
+                    id="provider"
+                    value={provider}
+                    onChange={(e) => {
+                      setProvider(e.target.value as AIProvider);
+                      setApiKey('');
+                      setHasExistingKey(false);
+                    }}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    {AI_PROVIDERS.map((p) => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <Input
+                  id="apiKey"
+                  label="API Key"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={
+                    hasExistingKey
+                      ? `${currentProvider.placeholder.replace('...', '***************')}`
+                      : currentProvider.placeholder
+                  }
+                />
+                <Button onClick={handleSaveApiKey} loading={savingKey}>
+                  Update API Key
+                </Button>
+              </div>
+            </>
+          )}
         </Card>
       </main>
       <FeedbackWidget />

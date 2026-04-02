@@ -3,12 +3,12 @@
 import { useState, useCallback } from 'react';
 import { QuizQuestion } from './QuizQuestion';
 import { QuizResults } from './QuizResults';
-import type { PublicQuestion, RevealResponse, QuestionAttempt } from '@/types/quiz';
+import type { PublicQuestion, RevealResponse, QuestionAttempt, CertaintyLevel } from '@/types/quiz';
 
 interface RetrySectionProps {
   incorrectQuestions: PublicQuestion[];
   allQuestions: PublicQuestion[];
-  onAnswer: (questionId: string, selectedAnswer: string) => Promise<RevealResponse>;
+  onAnswer: (questionId: string, selectedAnswer: string, certainty: CertaintyLevel) => Promise<RevealResponse>;
   onRetakeFull: () => void;
   onBackToResults: () => void;
 }
@@ -27,14 +27,15 @@ export function RetrySection({
   const [showResults, setShowResults] = useState(false);
 
   const handleAnswer = useCallback(
-    async (questionId: string, selectedAnswer: string): Promise<RevealResponse> => {
-      const result = await onAnswer(questionId, selectedAnswer);
+    async (questionId: string, selectedAnswer: string, certainty: CertaintyLevel): Promise<RevealResponse> => {
+      const result = await onAnswer(questionId, selectedAnswer, certainty);
       setAttempts((prev) => [
         ...prev,
         {
           question_id: questionId,
           selected_answer: selectedAnswer,
           is_correct: result.is_correct,
+          certainty,
           attempted_at: new Date().toISOString(),
         },
       ]);

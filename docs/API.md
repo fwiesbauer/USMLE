@@ -206,8 +206,15 @@ Returns the quiz and its questions **without** correct answers, explanations, or
 
 ```
 POST /api/public/quizzes/[token]/reveal
-Body: { question_id: string, selected_answer: string }
+Body: {
+  question_id: string,
+  selected_answer: string,
+  certainty?: 'certain' | 'medium' | 'uncertain',
+  visitor_id?: string,
+  session_id?: string (UUID)
+}
 Response: {
+  attempt_id: string | null,
   correct_answer: string,
   is_correct: boolean,
   explanation: string,
@@ -221,7 +228,27 @@ Response: {
 }
 ```
 
-After the learner submits their answer, this reveals the correct answer plus all supplementary information. The `is_correct` flag tells the frontend whether to show green (correct) or red (incorrect) feedback.
+After the learner selects an answer and a certainty level, this reveals the correct answer plus all supplementary information. The attempt is stored server-side in `question_attempts` (best-effort — DB failures don't block the response). Returns `attempt_id` so votes/comments can be linked to this specific attempt.
+
+### Create Quiz Session
+
+```
+POST /api/public/quizzes/[token]/sessions
+Body: { visitor_id?: string, total_questions: number }
+Response: { session_id: string }
+```
+
+Creates a new quiz session when the learner starts a quiz. The `session_id` is passed to subsequent `/reveal` calls to link all attempts within a single quiz take.
+
+### Complete Quiz Session
+
+```
+PATCH /api/public/quizzes/[token]/sessions/[sessionId]
+Body: { correct_count: number, total_questions: number, score_percent: number }
+Response: { success: true }
+```
+
+Marks a quiz session as completed with the final score. Called when the learner finishes all questions.
 
 ### Vote on Question
 
@@ -230,11 +257,11 @@ GET /api/public/questions/[id]/votes
 Response: { thumbs_up: number, thumbs_down: number }
 
 POST /api/public/questions/[id]/votes
-Body: { visitor_id: string, vote: 1 | -1 }
+Body: { visitor_id: string, vote: 1 | -1, attempt_id?: string }
 Response: { success: true }
 ```
 
-Each browser generates a unique `visitor_id` (stored in localStorage) to prevent duplicate votes. A `UNIQUE(question_id, visitor_id)` constraint in the database enforces one vote per visitor per question.
+Each browser generates a unique `visitor_id` (stored in localStorage) to prevent duplicate votes. A `UNIQUE(question_id, visitor_id)` constraint in the database enforces one vote per visitor per question. The optional `attempt_id` links the vote to a specific answer attempt for analytics.
 
 ### Comment on Question
 
@@ -243,11 +270,11 @@ GET /api/public/questions/[id]/comments
 Response: QuestionComment[]
 
 POST /api/public/questions/[id]/comments
-Body: { commenter_name?: string, comment_text: string }
+Body: { commenter_name?: string, comment_text: string, attempt_id?: string }
 Response: { id: string }
 ```
 
-Comments are free-text feedback from learners. The `commenter_name` is optional (anonymous by default).
+Comments are free-text feedback from learners. The `commenter_name` is optional (anonymous by default). The optional `attempt_id` links the comment to a specific answer attempt.
 
 ---
 

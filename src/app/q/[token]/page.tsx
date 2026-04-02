@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { QuizWelcome } from '@/components/quiz/QuizWelcome';
 import { QuizQuestion } from '@/components/quiz/QuizQuestion';
@@ -20,7 +20,9 @@ import type {
   RevealResponse,
   LearnerProgress,
   QuestionAttempt,
+  CertaintyLevel,
 } from '@/types/quiz';
+import { getVisitorId } from '@/lib/visitor';
 
 type Screen = 'welcome' | 'quiz' | 'results' | 'retry';
 
@@ -37,6 +39,7 @@ export default function LearnerQuizPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const sessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     async function loadQuiz() {
@@ -69,13 +72,51 @@ export default function LearnerQuizPage() {
     loadQuiz();
   }, [token]);
 
+  const createSession = useCallback(async (questionCount: number) => {
+    try {
+      const visitorId = getVisitorId();
+      const res = await fetch(`/api/public/quizzes/${token}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitor_id: visitorId,
+          total_questions: questionCount,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sessionIdRef.current = data.session_id;
+      }
+    } catch {
+      // Session tracking is best-effort — don't block the quiz
+    }
+  }, [token]);
+
+  const completeSession = useCallback(async (correct: number, total: number) => {
+    if (!sessionIdRef.current) return;
+    try {
+      await fetch(`/api/public/quizzes/${token}/sessions/${sessionIdRef.current}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          correct_count: correct,
+          total_questions: total,
+          score_percent: total > 0 ? Math.round((correct / total) * 100) : 0,
+        }),
+      });
+    } catch {
+      // Best-effort
+    }
+  }, [token]);
+
   const handleStart = useCallback(() => {
     const newProgress = initProgress('', token, quizTitle);
     setProgress(newProgress);
     saveProgress(newProgress);
     setCurrentIndex(0);
     setScreen('quiz');
-  }, [token, quizTitle]);
+    createSession(questions.length);
+  }, [token, quizTitle, questions.length, createSession]);
 
   const handleContinue = useCallback(() => {
     if (progress) {
@@ -94,11 +135,18 @@ export default function LearnerQuizPage() {
   }, [token, handleStart]);
 
   const handleAnswer = useCallback(
-    async (questionId: string, selectedAnswer: string): Promise<RevealResponse> => {
+    async (questionId: string, selectedAnswer: string, certainty: CertaintyLevel): Promise<RevealResponse> => {
+      const visitorId = getVisitorId();
       const res = await fetch(`/api/public/quizzes/${token}/reveal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question_id: questionId, selected_answer: selectedAnswer }),
+        body: JSON.stringify({
+          question_id: questionId,
+          selected_answer: selectedAnswer,
+          certainty,
+          visitor_id: visitorId,
+          session_id: sessionIdRef.current,
+        }),
       });
 
       if (!res.ok) {
@@ -111,6 +159,7 @@ export default function LearnerQuizPage() {
         question_id: questionId,
         selected_answer: selectedAnswer,
         is_correct: reveal.is_correct,
+        certainty,
         attempted_at: new Date().toISOString(),
       };
 
@@ -132,15 +181,21 @@ export default function LearnerQuizPage() {
         if (!prev) return prev;
         const updated = { ...prev, completed_at: new Date().toISOString() };
         saveProgress(updated);
+
+        // Complete the session with final score
+        const score = calculateScore(updated);
+        completeSession(score.correct, score.total);
+
         return updated;
       });
       setScreen('results');
     } else {
       setCurrentIndex((prev) => prev + 1);
     }
-  }, [currentIndex, questions.length]);
+  }, [currentIndex, questions.length, completeSession]);
 
   const handleRetryIncorrect = useCallback(() => {
+    // Create a new session for the retry
     setScreen('retry');
   }, []);
 

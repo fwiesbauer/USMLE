@@ -72,6 +72,7 @@ export interface PublicQuestion {
 
 /** Returned by the /reveal endpoint after learner submits answer */
 export interface RevealResponse {
+  attempt_id: string | null;
   correct_answer: string;
   is_correct: boolean;
   explanation: string;
@@ -85,6 +86,8 @@ export interface RevealResponse {
 }
 
 /** Comment on a question */
+export type CertaintyLevel = 'certain' | 'medium' | 'uncertain';
+
 export interface QuestionComment {
   id: string;
   question_id: string;
@@ -114,6 +117,7 @@ export interface QuestionAttempt {
   question_id: string;
   selected_answer: string;
   is_correct: boolean;
+  certainty?: CertaintyLevel;
   attempted_at: string;
 }
 
