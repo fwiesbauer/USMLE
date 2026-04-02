@@ -55,6 +55,26 @@ export default async function AdminQuizDetailPage({ params }: Props) {
     .eq('quiz_id', params.quizId)
     .order('position');
 
+  // Fetch feedback stats for questions in this quiz
+  const questionIds = (questions || []).map((q) => q.id);
+  const [{ data: votes }, { data: comments }] = questionIds.length > 0
+    ? await Promise.all([
+        service.from('question_votes').select('question_id, vote').in('question_id', questionIds),
+        service.from('question_comments').select('question_id').in('question_id', questionIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  const feedbackMap: Record<string, { thumbs_up: number; thumbs_down: number; comment_count: number }> = {};
+  for (const v of votes ?? []) {
+    if (!feedbackMap[v.question_id]) feedbackMap[v.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
+    if (v.vote === 1) feedbackMap[v.question_id].thumbs_up++;
+    else if (v.vote === -1) feedbackMap[v.question_id].thumbs_down++;
+  }
+  for (const c of comments ?? []) {
+    if (!feedbackMap[c.question_id]) feedbackMap[c.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
+    feedbackMap[c.question_id].comment_count++;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminHeader
@@ -100,6 +120,9 @@ export default async function AdminQuizDetailPage({ params }: Props) {
                 <th className="px-4 py-3">Tasks</th>
                 <th className="px-4 py-3">Disciplines</th>
                 <th className="px-4 py-3">Section</th>
+                <th className="px-4 py-3 text-right">👍</th>
+                <th className="px-4 py-3 text-right">👎</th>
+                <th className="px-4 py-3 text-right">💬</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -132,11 +155,20 @@ export default async function AdminQuizDetailPage({ params }: Props) {
                   <td className="px-4 py-3 text-xs text-gray-500 max-w-[150px] truncate">
                     {q.section || '—'}
                   </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {(feedbackMap[q.id]?.thumbs_up || 0) > 0 ? feedbackMap[q.id].thumbs_up : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {(feedbackMap[q.id]?.thumbs_down || 0) > 0 ? feedbackMap[q.id].thumbs_down : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {(feedbackMap[q.id]?.comment_count || 0) > 0 ? feedbackMap[q.id].comment_count : <span className="text-gray-300">0</span>}
+                  </td>
                 </tr>
               ))}
               {(!questions || questions.length === 0) && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={12} className="px-4 py-8 text-center text-gray-400">
                     No questions in this set.
                   </td>
                 </tr>

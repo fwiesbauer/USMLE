@@ -65,6 +65,9 @@ export default async function AdminPage({ searchParams }: Props) {
     source_metadata: Record<string, unknown> | null;
     doi: string | null;
     share_token: string | null;
+    thumbs_up: number;
+    thumbs_down: number;
+    comment_count: number;
   }> = [];
 
   if (tab === 'users') {
@@ -145,6 +148,24 @@ export default async function AdminPage({ searchParams }: Props) {
         edMap[e.id] = e;
       }
 
+      // Fetch feedback stats (votes + comments) for all questions
+      const questionIds = questions.map((q) => q.id);
+      const [{ data: votes }, { data: comments }] = await Promise.all([
+        service.from('question_votes').select('question_id, vote').in('question_id', questionIds),
+        service.from('question_comments').select('question_id').in('question_id', questionIds),
+      ]);
+
+      const feedbackMap: Record<string, { thumbs_up: number; thumbs_down: number; comment_count: number }> = {};
+      for (const v of votes ?? []) {
+        if (!feedbackMap[v.question_id]) feedbackMap[v.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
+        if (v.vote === 1) feedbackMap[v.question_id].thumbs_up++;
+        else if (v.vote === -1) feedbackMap[v.question_id].thumbs_down++;
+      }
+      for (const c of comments ?? []) {
+        if (!feedbackMap[c.question_id]) feedbackMap[c.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
+        feedbackMap[c.question_id].comment_count++;
+      }
+
       allQuestions = questions.map((q) => {
         const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null, source_metadata: null, doi: null, share_token: null };
         const ed = edMap[quiz.educator_id] || { email: '—', display_name: null };
@@ -163,6 +184,9 @@ export default async function AdminPage({ searchParams }: Props) {
           source_metadata: quiz.source_metadata as Record<string, unknown> | null,
           doi: quiz.doi,
           share_token: quiz.share_token,
+          thumbs_up: feedbackMap[q.id]?.thumbs_up || 0,
+          thumbs_down: feedbackMap[q.id]?.thumbs_down || 0,
+          comment_count: feedbackMap[q.id]?.comment_count || 0,
         };
       });
 
@@ -173,6 +197,9 @@ export default async function AdminPage({ searchParams }: Props) {
         else if (sort === 'organ_systems') cmp = (a.organ_systems[0] || '').localeCompare(b.organ_systems[0] || '');
         else if (sort === 'disciplines') cmp = (a.disciplines[0] || '').localeCompare(b.disciplines[0] || '');
         else if (sort === 'physician_tasks') cmp = (a.physician_tasks[0] || '').localeCompare(b.physician_tasks[0] || '');
+        else if (sort === 'thumbs_up') cmp = a.thumbs_up - b.thumbs_up;
+        else if (sort === 'thumbs_down') cmp = a.thumbs_down - b.thumbs_down;
+        else if (sort === 'comments') cmp = a.comment_count - b.comment_count;
         else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         return dir === 'asc' ? cmp : -cmp;
       });
@@ -293,6 +320,15 @@ export default async function AdminPage({ searchParams }: Props) {
                   <th className="px-4 py-3">DOI</th>
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Share Link</th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('thumbs_up')}>👍{sortIndicator('thumbs_up')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('thumbs_down')}>👎{sortIndicator('thumbs_down')}</Link>
+                  </th>
+                  <th className="px-4 py-3 text-right">
+                    <Link href={sortUrl('comments')}>💬{sortIndicator('comments')}</Link>
+                  </th>
                   <th className="px-4 py-3">
                     <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
                   </th>
@@ -360,6 +396,15 @@ export default async function AdminPage({ searchParams }: Props) {
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                      {q.thumbs_up > 0 ? q.thumbs_up : <span className="text-gray-300">0</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                      {q.thumbs_down > 0 ? q.thumbs_down : <span className="text-gray-300">0</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                      {q.comment_count > 0 ? q.comment_count : <span className="text-gray-300">0</span>}
+                    </td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                       {new Date(q.created_at).toLocaleDateString()}
                     </td>
@@ -368,7 +413,7 @@ export default async function AdminPage({ searchParams }: Props) {
                 })}
                 {allQuestions.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={16} className="px-4 py-8 text-center text-gray-400">
                       No questions generated yet.
                     </td>
                   </tr>

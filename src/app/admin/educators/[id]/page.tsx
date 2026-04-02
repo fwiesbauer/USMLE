@@ -55,12 +55,42 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
         .in('quiz_id', quizIds)
     : { data: [] as Array<{ id: string; quiz_id: string; organ_systems: string[]; physician_tasks: string[]; disciplines: string[] }> };
 
+  // Fetch feedback stats (votes + comments) for all questions in this educator's quizzes
+  const allQuestionIds = (questions || []).map((q) => q.id);
+  const [{ data: votes }, { data: comments }] = allQuestionIds.length > 0
+    ? await Promise.all([
+        service.from('question_votes').select('question_id, vote').in('question_id', allQuestionIds),
+        service.from('question_comments').select('question_id').in('question_id', allQuestionIds),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  // Build per-question feedback map
+  const qFeedback: Record<string, { thumbs_up: number; thumbs_down: number; comment_count: number }> = {};
+  for (const v of votes ?? []) {
+    if (!qFeedback[v.question_id]) qFeedback[v.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
+    if (v.vote === 1) qFeedback[v.question_id].thumbs_up++;
+    else if (v.vote === -1) qFeedback[v.question_id].thumbs_down++;
+  }
+  for (const c of comments ?? []) {
+    if (!qFeedback[c.question_id]) qFeedback[c.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
+    qFeedback[c.question_id].comment_count++;
+  }
+
+  // Map question to quiz for aggregation
+  const questionToQuiz: Record<string, string> = {};
+  for (const q of questions || []) {
+    questionToQuiz[q.id] = q.quiz_id;
+  }
+
   // Aggregate per quiz
   const quizStats: Record<string, {
     count: number;
     organ_systems: Set<string>;
     physician_tasks: Set<string>;
     disciplines: Set<string>;
+    thumbs_up: number;
+    thumbs_down: number;
+    comment_count: number;
   }> = {};
 
   for (const q of questions || []) {
@@ -70,6 +100,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
         organ_systems: new Set(),
         physician_tasks: new Set(),
         disciplines: new Set(),
+        thumbs_up: 0,
+        thumbs_down: 0,
+        comment_count: 0,
       };
     }
     const s = quizStats[q.quiz_id];
@@ -77,6 +110,12 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
     (q.organ_systems || []).forEach((v: string) => s.organ_systems.add(v));
     (q.physician_tasks || []).forEach((v: string) => s.physician_tasks.add(v));
     (q.disciplines || []).forEach((v: string) => s.disciplines.add(v));
+    const fb = qFeedback[q.id];
+    if (fb) {
+      s.thumbs_up += fb.thumbs_up;
+      s.thumbs_down += fb.thumbs_down;
+      s.comment_count += fb.comment_count;
+    }
   }
 
   const sort = searchParams.sort || 'created_at';
@@ -88,6 +127,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
     organ_systems: Array.from(quizStats[q.id]?.organ_systems || []),
     physician_tasks: Array.from(quizStats[q.id]?.physician_tasks || []),
     disciplines: Array.from(quizStats[q.id]?.disciplines || []),
+    thumbs_up: quizStats[q.id]?.thumbs_up || 0,
+    thumbs_down: quizStats[q.id]?.thumbs_down || 0,
+    comment_count: quizStats[q.id]?.comment_count || 0,
   }));
 
   quizRows.sort((a, b) => {
@@ -95,6 +137,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
     if (sort === 'title') cmp = a.title.localeCompare(b.title);
     else if (sort === 'status') cmp = a.status.localeCompare(b.status);
     else if (sort === 'question_count') cmp = a.question_count - b.question_count;
+    else if (sort === 'thumbs_up') cmp = a.thumbs_up - b.thumbs_up;
+    else if (sort === 'thumbs_down') cmp = a.thumbs_down - b.thumbs_down;
+    else if (sort === 'comments') cmp = a.comment_count - b.comment_count;
     else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     return dir === 'asc' ? cmp : -cmp;
   });
@@ -159,6 +204,15 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                 <th className="px-4 py-3">Tasks</th>
                 <th className="px-4 py-3">Disciplines</th>
                 <th className="px-4 py-3">Share Link</th>
+                <th className="px-4 py-3 text-right">
+                  <Link href={sortUrl('thumbs_up')}>👍{sortIndicator('thumbs_up')}</Link>
+                </th>
+                <th className="px-4 py-3 text-right">
+                  <Link href={sortUrl('thumbs_down')}>👎{sortIndicator('thumbs_down')}</Link>
+                </th>
+                <th className="px-4 py-3 text-right">
+                  <Link href={sortUrl('comments')}>💬{sortIndicator('comments')}</Link>
+                </th>
                 <th className="px-4 py-3">
                   <Link href={sortUrl('created_at')}>Created{sortIndicator('created_at')}</Link>
                 </th>
@@ -240,6 +294,15 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                       <span className="text-gray-300">—</span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {q.thumbs_up > 0 ? q.thumbs_up : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {q.thumbs_down > 0 ? q.thumbs_down : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {q.comment_count > 0 ? q.comment_count : <span className="text-gray-300">0</span>}
+                  </td>
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
                     {new Date(q.created_at).toLocaleDateString()}
                   </td>
@@ -248,7 +311,7 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
               })}
               {quizRows.length === 0 && (
                 <tr>
-                  <td colSpan={15} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={18} className="px-4 py-8 text-center text-gray-400">
                     No question sets yet.
                   </td>
                 </tr>
