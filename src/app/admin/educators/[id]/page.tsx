@@ -57,12 +57,13 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
 
   // Fetch feedback stats (votes + comments) for all questions in this educator's quizzes
   const allQuestionIds = (questions || []).map((q) => q.id);
-  const [{ data: votes }, { data: comments }] = allQuestionIds.length > 0
+  const [{ data: votes }, { data: comments }, { data: attempts }] = allQuestionIds.length > 0
     ? await Promise.all([
         service.from('question_votes').select('question_id, vote').in('question_id', allQuestionIds),
         service.from('question_comments').select('question_id').in('question_id', allQuestionIds),
+        service.from('question_attempts').select('question_id, is_correct').in('question_id', allQuestionIds),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   // Build per-question feedback map
   const qFeedback: Record<string, { thumbs_up: number; thumbs_down: number; comment_count: number }> = {};
@@ -74,6 +75,14 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
   for (const c of comments ?? []) {
     if (!qFeedback[c.question_id]) qFeedback[c.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
     qFeedback[c.question_id].comment_count++;
+  }
+
+  // Build per-question attempt map
+  const qAttempts: Record<string, { correct: number; incorrect: number }> = {};
+  for (const a of attempts ?? []) {
+    if (!qAttempts[a.question_id]) qAttempts[a.question_id] = { correct: 0, incorrect: 0 };
+    if (a.is_correct) qAttempts[a.question_id].correct++;
+    else qAttempts[a.question_id].incorrect++;
   }
 
   // Map question to quiz for aggregation
@@ -91,6 +100,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
     thumbs_up: number;
     thumbs_down: number;
     comment_count: number;
+    times_taken: number;
+    correct_count: number;
+    incorrect_count: number;
   }> = {};
 
   for (const q of questions || []) {
@@ -103,6 +115,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
         thumbs_up: 0,
         thumbs_down: 0,
         comment_count: 0,
+        times_taken: 0,
+        correct_count: 0,
+        incorrect_count: 0,
       };
     }
     const s = quizStats[q.quiz_id];
@@ -115,6 +130,12 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
       s.thumbs_up += fb.thumbs_up;
       s.thumbs_down += fb.thumbs_down;
       s.comment_count += fb.comment_count;
+    }
+    const att = qAttempts[q.id];
+    if (att) {
+      s.times_taken += att.correct + att.incorrect;
+      s.correct_count += att.correct;
+      s.incorrect_count += att.incorrect;
     }
   }
 
@@ -130,6 +151,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
     thumbs_up: quizStats[q.id]?.thumbs_up || 0,
     thumbs_down: quizStats[q.id]?.thumbs_down || 0,
     comment_count: quizStats[q.id]?.comment_count || 0,
+    times_taken: quizStats[q.id]?.times_taken || 0,
+    correct_count: quizStats[q.id]?.correct_count || 0,
+    incorrect_count: quizStats[q.id]?.incorrect_count || 0,
   }));
 
   quizRows.sort((a, b) => {
@@ -140,6 +164,9 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
     else if (sort === 'thumbs_up') cmp = a.thumbs_up - b.thumbs_up;
     else if (sort === 'thumbs_down') cmp = a.thumbs_down - b.thumbs_down;
     else if (sort === 'comments') cmp = a.comment_count - b.comment_count;
+    else if (sort === 'times_taken') cmp = a.times_taken - b.times_taken;
+    else if (sort === 'correct') cmp = a.correct_count - b.correct_count;
+    else if (sort === 'incorrect') cmp = a.incorrect_count - b.incorrect_count;
     else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
     return dir === 'asc' ? cmp : -cmp;
   });
@@ -204,6 +231,15 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                 <th className="px-4 py-3">Tasks</th>
                 <th className="px-4 py-3">Disciplines</th>
                 <th className="px-4 py-3">Share Link</th>
+                <th className="px-4 py-3 text-right">
+                  <Link href={sortUrl('times_taken')}>Taken{sortIndicator('times_taken')}</Link>
+                </th>
+                <th className="px-4 py-3 text-right">
+                  <Link href={sortUrl('correct')}>Correct{sortIndicator('correct')}</Link>
+                </th>
+                <th className="px-4 py-3 text-right">
+                  <Link href={sortUrl('incorrect')}>Incorrect{sortIndicator('incorrect')}</Link>
+                </th>
                 <th className="px-4 py-3 text-right">
                   <Link href={sortUrl('thumbs_up')}>👍{sortIndicator('thumbs_up')}</Link>
                 </th>
@@ -295,6 +331,15 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
                     )}
                   </td>
                   <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {q.times_taken > 0 ? q.times_taken : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs font-medium text-correct-dark">
+                    {q.correct_count > 0 ? q.correct_count : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs font-medium text-wrong-dark">
+                    {q.incorrect_count > 0 ? q.incorrect_count : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
                     {q.thumbs_up > 0 ? q.thumbs_up : <span className="text-gray-300">0</span>}
                   </td>
                   <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
@@ -311,7 +356,7 @@ export default async function AdminEducatorPage({ params, searchParams }: Props)
               })}
               {quizRows.length === 0 && (
                 <tr>
-                  <td colSpan={18} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={21} className="px-4 py-8 text-center text-gray-400">
                     No question sets yet.
                   </td>
                 </tr>

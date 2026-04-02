@@ -57,12 +57,13 @@ export default async function AdminQuizDetailPage({ params }: Props) {
 
   // Fetch feedback stats for questions in this quiz
   const questionIds = (questions || []).map((q) => q.id);
-  const [{ data: votes }, { data: comments }] = questionIds.length > 0
+  const [{ data: votes }, { data: comments }, { data: attempts }] = questionIds.length > 0
     ? await Promise.all([
         service.from('question_votes').select('question_id, vote').in('question_id', questionIds),
         service.from('question_comments').select('question_id').in('question_id', questionIds),
+        service.from('question_attempts').select('question_id, is_correct').in('question_id', questionIds),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   const feedbackMap: Record<string, { thumbs_up: number; thumbs_down: number; comment_count: number }> = {};
   for (const v of votes ?? []) {
@@ -73,6 +74,13 @@ export default async function AdminQuizDetailPage({ params }: Props) {
   for (const c of comments ?? []) {
     if (!feedbackMap[c.question_id]) feedbackMap[c.question_id] = { thumbs_up: 0, thumbs_down: 0, comment_count: 0 };
     feedbackMap[c.question_id].comment_count++;
+  }
+
+  const attemptMap: Record<string, { correct: number; incorrect: number }> = {};
+  for (const a of attempts ?? []) {
+    if (!attemptMap[a.question_id]) attemptMap[a.question_id] = { correct: 0, incorrect: 0 };
+    if (a.is_correct) attemptMap[a.question_id].correct++;
+    else attemptMap[a.question_id].incorrect++;
   }
 
   return (
@@ -120,6 +128,9 @@ export default async function AdminQuizDetailPage({ params }: Props) {
                 <th className="px-4 py-3">Tasks</th>
                 <th className="px-4 py-3">Disciplines</th>
                 <th className="px-4 py-3">Section</th>
+                <th className="px-4 py-3 text-right">Taken</th>
+                <th className="px-4 py-3 text-right">Correct</th>
+                <th className="px-4 py-3 text-right">Incorrect</th>
                 <th className="px-4 py-3 text-right">👍</th>
                 <th className="px-4 py-3 text-right">👎</th>
                 <th className="px-4 py-3 text-right">💬</th>
@@ -156,6 +167,15 @@ export default async function AdminQuizDetailPage({ params }: Props) {
                     {q.section || '—'}
                   </td>
                   <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
+                    {((attemptMap[q.id]?.correct || 0) + (attemptMap[q.id]?.incorrect || 0)) > 0 ? (attemptMap[q.id]?.correct || 0) + (attemptMap[q.id]?.incorrect || 0) : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs font-medium text-correct-dark">
+                    {(attemptMap[q.id]?.correct || 0) > 0 ? attemptMap[q.id].correct : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs font-medium text-wrong-dark">
+                    {(attemptMap[q.id]?.incorrect || 0) > 0 ? attemptMap[q.id].incorrect : <span className="text-gray-300">0</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
                     {(feedbackMap[q.id]?.thumbs_up || 0) > 0 ? feedbackMap[q.id].thumbs_up : <span className="text-gray-300">0</span>}
                   </td>
                   <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">
@@ -168,7 +188,7 @@ export default async function AdminQuizDetailPage({ params }: Props) {
               ))}
               {(!questions || questions.length === 0) && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={15} className="px-4 py-8 text-center text-gray-400">
                     No questions in this set.
                   </td>
                 </tr>

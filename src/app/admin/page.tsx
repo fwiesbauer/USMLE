@@ -39,7 +39,7 @@ export default async function AdminPage({ searchParams }: Props) {
   ]);
 
   let educators: Array<{ id: string; email: string; display_name: string | null; created_at: string; quiz_count: number; question_count: number }> = [];
-  let allQuestions: Array<{ id: string; question_text: string; organ_systems: string[]; physician_tasks: string[]; disciplines: string[]; created_at: string; educator_email: string; educator_name: string | null; educator_id: string; source_reference: string | null; source_filename: string | null; source_metadata: Record<string, unknown> | null; doi: string | null; share_token: string | null; thumbs_up: number; thumbs_down: number; comment_count: number }> = [];
+  let allQuestions: Array<{ id: string; question_text: string; organ_systems: string[]; physician_tasks: string[]; disciplines: string[]; created_at: string; educator_email: string; educator_name: string | null; educator_id: string; source_reference: string | null; source_filename: string | null; source_metadata: Record<string, unknown> | null; doi: string | null; share_token: string | null; thumbs_up: number; thumbs_down: number; comment_count: number; times_taken: number; correct_count: number; incorrect_count: number }> = [];
 
   if (tab === 'users') {
     const { data: eds } = await service.from('educators').select('id, email, display_name, created_at');
@@ -74,11 +74,12 @@ export default async function AdminPage({ searchParams }: Props) {
       const edMap: Record<string, { email: string; display_name: string | null }> = {};
       for (const e of eds || []) edMap[e.id] = e;
 
-      // Fetch feedback stats (votes + comments) for all questions
+      // Fetch feedback stats (votes + comments + attempts) for all questions
       const questionIds = questions.map((q) => q.id);
-      const [{ data: votes }, { data: comments }] = await Promise.all([
+      const [{ data: votes }, { data: comments }, { data: attempts }] = await Promise.all([
         service.from('question_votes').select('question_id, vote').in('question_id', questionIds),
         service.from('question_comments').select('question_id').in('question_id', questionIds),
+        service.from('question_attempts').select('question_id, is_correct').in('question_id', questionIds),
       ]);
 
       const feedbackMap: Record<string, { thumbs_up: number; thumbs_down: number; comment_count: number }> = {};
@@ -92,10 +93,17 @@ export default async function AdminPage({ searchParams }: Props) {
         feedbackMap[c.question_id].comment_count++;
       }
 
+      const attemptMap: Record<string, { correct: number; incorrect: number }> = {};
+      for (const a of attempts ?? []) {
+        if (!attemptMap[a.question_id]) attemptMap[a.question_id] = { correct: 0, incorrect: 0 };
+        if (a.is_correct) attemptMap[a.question_id].correct++;
+        else attemptMap[a.question_id].incorrect++;
+      }
+
       allQuestions = questions.map((q) => {
         const quiz = quizMap[q.quiz_id] || { educator_id: '', source_reference: null, source_filename: null, source_metadata: null, doi: null, share_token: null };
         const ed = edMap[quiz.educator_id] || { email: '\u2014', display_name: null };
-        return { id: q.id, question_text: q.question_text, organ_systems: q.organ_systems || [], physician_tasks: q.physician_tasks || [], disciplines: q.disciplines || [], created_at: q.created_at, educator_email: ed.email, educator_name: ed.display_name, educator_id: quiz.educator_id, source_reference: quiz.source_reference, source_filename: quiz.source_filename, source_metadata: quiz.source_metadata as Record<string, unknown> | null, doi: quiz.doi, share_token: quiz.share_token, thumbs_up: feedbackMap[q.id]?.thumbs_up || 0, thumbs_down: feedbackMap[q.id]?.thumbs_down || 0, comment_count: feedbackMap[q.id]?.comment_count || 0 };
+        return { id: q.id, question_text: q.question_text, organ_systems: q.organ_systems || [], physician_tasks: q.physician_tasks || [], disciplines: q.disciplines || [], created_at: q.created_at, educator_email: ed.email, educator_name: ed.display_name, educator_id: quiz.educator_id, source_reference: quiz.source_reference, source_filename: quiz.source_filename, source_metadata: quiz.source_metadata as Record<string, unknown> | null, doi: quiz.doi, share_token: quiz.share_token, thumbs_up: feedbackMap[q.id]?.thumbs_up || 0, thumbs_down: feedbackMap[q.id]?.thumbs_down || 0, comment_count: feedbackMap[q.id]?.comment_count || 0, times_taken: (attemptMap[q.id]?.correct || 0) + (attemptMap[q.id]?.incorrect || 0), correct_count: attemptMap[q.id]?.correct || 0, incorrect_count: attemptMap[q.id]?.incorrect || 0 };
       });
       allQuestions.sort((a, b) => {
         let cmp = 0;
@@ -106,6 +114,9 @@ export default async function AdminPage({ searchParams }: Props) {
         else if (sort === 'thumbs_up') cmp = a.thumbs_up - b.thumbs_up;
         else if (sort === 'thumbs_down') cmp = a.thumbs_down - b.thumbs_down;
         else if (sort === 'comments') cmp = a.comment_count - b.comment_count;
+        else if (sort === 'times_taken') cmp = a.times_taken - b.times_taken;
+        else if (sort === 'correct') cmp = a.correct_count - b.correct_count;
+        else if (sort === 'incorrect') cmp = a.incorrect_count - b.incorrect_count;
         else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         return dir === 'asc' ? cmp : -cmp;
       });
@@ -152,6 +163,9 @@ export default async function AdminPage({ searchParams }: Props) {
                 <th className="px-4 py-3"><Link href={sortUrl('disciplines')}>Disciplines{sortIndicator('disciplines')}</Link></th>
                 <th className="px-4 py-3"><Link href={sortUrl('educator')}>Creator{sortIndicator('educator')}</Link></th>
                 <th className="px-4 py-3">Article / Source</th><th className="px-4 py-3">Authors</th><th className="px-4 py-3">Journal</th><th className="px-4 py-3">Year</th><th className="px-4 py-3">DOI</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Share Link</th>
+                <th className="px-4 py-3 text-right"><Link href={sortUrl('times_taken')}>Taken{sortIndicator('times_taken')}</Link></th>
+                <th className="px-4 py-3 text-right"><Link href={sortUrl('correct')}>Correct{sortIndicator('correct')}</Link></th>
+                <th className="px-4 py-3 text-right"><Link href={sortUrl('incorrect')}>Incorrect{sortIndicator('incorrect')}</Link></th>
                 <th className="px-4 py-3 text-right"><Link href={sortUrl('thumbs_up')}>👍{sortIndicator('thumbs_up')}</Link></th>
                 <th className="px-4 py-3 text-right"><Link href={sortUrl('thumbs_down')}>👎{sortIndicator('thumbs_down')}</Link></th>
                 <th className="px-4 py-3 text-right"><Link href={sortUrl('comments')}>💬{sortIndicator('comments')}</Link></th>
@@ -174,13 +188,16 @@ export default async function AdminPage({ searchParams }: Props) {
                     <td className="px-4 py-3 text-xs text-gray-500 max-w-[150px] truncate">{doi ? (<a href={`https://doi.org/${doi}`} target="_blank" rel="noopener noreferrer" className="text-brand-mid hover:underline">{doi}</a>) : '\u2014'}</td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{meta?.document_type === 'journal_article' ? 'Article' : meta?.document_type === 'manuscript' ? 'Manuscript' : '\u2014'}</td>
                     <td className="px-4 py-3 text-xs">{q.share_token ? (<a href={`/q/${q.share_token}`} target="_blank" rel="noopener noreferrer" className="text-brand-mid hover:underline">/q/{q.share_token.slice(0, 8)}...</a>) : (<span className="text-gray-300">{'\u2014'}</span>)}</td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">{q.times_taken > 0 ? q.times_taken : <span className="text-gray-300">0</span>}</td>
+                    <td className="px-4 py-3 text-right text-xs font-medium text-correct-dark">{q.correct_count > 0 ? q.correct_count : <span className="text-gray-300">0</span>}</td>
+                    <td className="px-4 py-3 text-right text-xs font-medium text-wrong-dark">{q.incorrect_count > 0 ? q.incorrect_count : <span className="text-gray-300">0</span>}</td>
                     <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">{q.thumbs_up > 0 ? q.thumbs_up : <span className="text-gray-300">0</span>}</td>
                     <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">{q.thumbs_down > 0 ? q.thumbs_down : <span className="text-gray-300">0</span>}</td>
                     <td className="px-4 py-3 text-right text-xs text-gray-700 font-medium">{q.comment_count > 0 ? q.comment_count : <span className="text-gray-300">0</span>}</td>
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{new Date(q.created_at).toLocaleDateString()}</td>
                   </tr>);
                 })}
-                {allQuestions.length === 0 && (<tr><td colSpan={16} className="px-4 py-8 text-center text-gray-400">No questions generated yet.</td></tr>)}
+                {allQuestions.length === 0 && (<tr><td colSpan={19} className="px-4 py-8 text-center text-gray-400">No questions generated yet.</td></tr>)}
               </tbody>
             </table>
           </div>
